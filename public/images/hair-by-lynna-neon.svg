@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 110" role="img" aria-label="Hair by Lynna">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Allura&amp;display=swap');
+.word{font-family:Allura,cursive;font-size:88px;font-weight:400;fill:#ffd4e6;stroke:#ffc0db;stroke-width:.25;paint-order:stroke;animation:neon 3s ease-in-out infinite alternate;filter:drop-shadow(0 0 2px #fff6dc) drop-shadow(0 0 5px #d989b2);}
+@keyframes neon{0%{fill:#f5c4d8;stroke:#e19fbe;filter:drop-shadow(0 0 2px #fff4eb) drop-shadow(0 0 5px #d88cba)}50%{fill:#ffdbea;stroke:#ffabd0;filter:drop-shadow(0 0 3px #fff2ee) drop-shadow(0 0 9px #e98dbd)}100%{fill:#ffdef0;stroke:#ff79bb;filter:drop-shadow(0 0 5px #fff) drop-shadow(0 0 12px #ff63ab)}}
+@media(prefers-reduced-motion:reduce){.word{animation:none}}
+</style>
+<text class="word" x="180" y="81" text-anchor="middle" textLength="340" lengthAdjust="spacingAndGlyphs">Hair by Lynna</text>
+</svg>
