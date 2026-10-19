@@ -19,3 +19,56 @@
 .calendar-slot-chip{background:#3b2433;color:#ffdaec;border:1px solid #9c6887;border-radius:5px;padding:8px 12px;font-size:12px;cursor:grab}
 .calendar-slot-chip:active{cursor:grabbing}
 @media(max-width:550px){.availability-calendar{padding:9px}.calendar-grid{gap:3px}.calendar-date,.calendar-empty{min-height:57px}.calendar-date{padding:5px}.calendar-count{font-size:8px;padding:2px}.calendar-weekday{font-size:10px}.calendar-heading h3{font-size:22px}}
+
+/* Mobile-first admin layout and flexible scheduling controls */
+.admin-page,.admin-main,.admin-panel,.availability-calendar,.availability-editor{max-width:100%;min-width:0;box-sizing:border-box}
+.admin-page{width:100%;overflow-x:clip}
+.admin-main{width:100%}
+.admin-panel{overflow-wrap:anywhere}
+.admin-form>*{min-width:0}
+.admin-page input,.admin-page select{width:100%;max-width:100%;box-sizing:border-box}
+.admin-tabs{width:100%;min-width:0}
+.admin-tabs button{min-width:0}
+.admin-items,.admin-item,.slot-edit-fields{min-width:0;max-width:100%}
+.schedule-mode{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.schedule-mode button{flex:1 1 140px;background:#20131c;color:#f7c9df;border:1px solid #795069;border-radius:6px;padding:12px;cursor:pointer}
+.schedule-mode button.active{background:#d58bac;color:#120a10;font-weight:700}
+.bulk-editor{border:1px solid #563447;border-radius:9px;padding:16px;background:#0e090e}
+.bulk-editor h3,.schedule-day-title{font-family:'Cormorant Garamond',serif;color:#f1b4d2;font-weight:400;font-size:26px;margin:12px 0}
+.weekday-picker{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin:15px 0}
+.weekday-picker label{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;border:1px solid #634157;border-radius:6px;background:#20131d;padding:9px 3px;cursor:pointer;min-width:0;font-size:11px}
+.weekday-picker label.chosen{background:#4c2c40;border-color:#f1b4d2}
+.weekday-picker input{width:16px;height:16px;accent-color:#eaa2c4}
+.bulk-replace{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;margin-top:15px}
+.bulk-replace input{width:16px!important;flex:none}
+.admin-primary{padding:12px 18px;border:0;border-radius:5px;background:#d58bac;color:#15080d;cursor:pointer;font-weight:700}
+.bulk-preview{margin-top:18px;border:1px solid #8a5b75;background:#241521;border-radius:7px;padding:15px}
+.slot-row-actions{display:flex;gap:7px;flex-wrap:wrap}
+.slot-edit-fields{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;width:100%}
+.slot-edit-fields label{flex:1 1 110px}
+.slot-edit-fields button{flex:0 1 auto}
+@media(max-width:700px){
+ .admin-bar{padding:10px 12px;gap:8px;flex-wrap:wrap}
+ .admin-logo{font-size:28px}
+ .admin-actions{gap:8px;max-width:100%}
+ .admin-actions a,.admin-actions button{font-size:11px}
+ .admin-main{padding:18px 10px}
+ .admin-main h1{font-size:34px;overflow-wrap:anywhere}
+ .admin-panel{padding:12px;margin:14px 0}
+ .admin-tabs{gap:5px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+ .admin-tabs button{font-size:11px;padding:10px 5px;gap:5px;justify-content:center;flex-direction:column;text-align:center;overflow-wrap:anywhere}
+ .admin-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .admin-form>button{grid-column:1/-1}
+ .admin-item{gap:9px;padding:10px;word-break:break-word}
+ .calendar-date,.calendar-empty{min-height:49px}
+ .calendar-count{max-width:100%;font-size:8px;overflow-wrap:anywhere}
+ .weekday-picker{gap:3px}
+ .weekday-picker label{font-size:9px;padding:7px 1px}
+ .bulk-editor{padding:10px}
+ .slot-row-actions{width:100%}
+}
+@media(max-width:370px){
+ .admin-form{grid-template-columns:1fr}
+ .calendar-date{padding:3px}
+ .calendar-count{font-size:7px}
+}
