@@ -23,3 +23,7 @@ When booking features are built, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON
 - Appointment requests, approval workflow, prevention of overlapping bookings, expiration policies.
 - Secure Telegram alerts to Lynna and customer email notifications using providers' free tiers.
 - Add complete and client-approved policy text before allowing bookings.
+
+## Deployment note (2026-10-18)
+
+Cloudflare Pages is connected to the `main` branch. This documentation update requests a fresh build after restoring the GitHub connection; it does not change the website's design or features.
