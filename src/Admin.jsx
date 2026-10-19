@@ -45,6 +45,7 @@ export default function Admin(){
   if(error)setError(error.message);setBusy(false);
  }
  async function addSlot(e){e.preventDefault();setError('');if(end<=start){setError(lang==='fr'?"L'heure de fin doit être après le début.":'End time must be after start time.');return}
+  if(availability.some(s=>s.date===day&&s.enabled&&start<s.end_time&&end>s.start_time)){setError(lang==='fr'?'Cette plage chevauche une disponibilité existante.':'This time window overlaps an existing availability window.');return}
   setBusy(true);const {error}=await supabase.from('availability').insert({date:day,start_time:start,end_time:end,enabled:true});
   if(error)setError(error.message);else await reload();setBusy(false);
  }
