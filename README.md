@@ -10,12 +10,6 @@ This is the **first visual foundation**, not a live booking system. The **Book**
 
 Connect this repository in Cloudflare > Workers & Pages > Pages. Set framework preset **Vite**, build command **npm run build**, output directory **dist**. No local terminal needed.
 
-## Supabase
-
-Project URL: `https://bqskepnkkzugkofqjuyv.supabase.co`
-
-When booking features are built, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to Cloudflare Pages environment variables. Anon keys are public-facing; **never** publish the service-role key, database password, Telegram bot token, or other server-side secrets. Enable RLS and server-side authorization before opening bookings.
-
 ## Upcoming
 
 - Replace placeholder service cards with client's original hairstyle photos, service names, durations and pricing.
