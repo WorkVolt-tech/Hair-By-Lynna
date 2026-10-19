@@ -25,3 +25,9 @@ section[id]{scroll-margin-top:90px}
 .selfies-signoff span{font-family:'Cormorant Garamond',serif;font-size:clamp(49px,7vw,73px);letter-spacing:.12em;color:#ffb5d5;text-shadow:0 0 8px #ff92c6,0 0 19px #e875aa;line-height:1}
 .selfies-signoff em{font-family:Allura,cursive;font-style:normal;color:#fff;font-size:69px;line-height:.8;transform:rotate(-10deg);text-shadow:0 0 9px #fff,0 0 22px #eee}
 @media(max-width:500px){.selfies-panel{padding-top:55px;min-height:690px}.selfies-heart{height:340px}.heart-shape{font-size:325px;top:-58px}.heart-words{top:52px}.selfies-script{margin-bottom:62px}.selfies-bow{font-size:82px;bottom:-10px}.selfies-line{margin-bottom:48px}}
+
+/* Compact animated neon wordmark in the sticky header */
+.logo-image-link{display:flex;align-items:center;flex:0 0 auto;line-height:1;min-width:0}
+.header-logo-image{display:block;width:150px;height:auto;object-fit:contain}
+@media(max-width:750px){.header-logo-image{width:115px}}
+@media(max-width:390px){.header-logo-image{width:98px}}
