@@ -10,3 +10,18 @@
 /* Keep anchor targets visible under the persistent header. */
 section[id]{scroll-margin-top:90px}
 @media(max-width:750px){html{scroll-padding-top:76px}section[id]{scroll-margin-top:76px}.topbar{padding:0 18px}.topbar nav{top:100%;box-shadow:0 15px 20px #0009}}
+
+/* Original-site-inspired final selfie and thank-you panel */
+.selfies-panel{background:#000;color:#f5edf1;min-height:790px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:75px 18px 110px;overflow:hidden}
+.selfies-heart{width:min(400px,83vw);height:385px;position:relative;margin:auto auto 0;flex:none}
+.heart-shape{position:absolute;inset:-75px 0 auto;font-family:Georgia,serif;font-size:405px;line-height:1;color:#202023;text-shadow:inset 0 0 10px #fff, -12px -7px 12px #555, 13px 6px 19px #070707, 0 0 20px #2b2b2b;transform:scaleX(1.05);pointer-events:none}
+.heart-words{position:absolute;top:68px;left:0;width:100%;display:flex;align-items:center;flex-direction:column;z-index:1}
+.selfies-upper{font-family:'Cormorant Garamond',serif;font-weight:300;letter-spacing:.18em;font-size:clamp(42px,7.5vw,65px);line-height:.89;color:#ffb6d8;text-shadow:0 0 9px #ff89c0,0 0 27px #e3559f}
+.selfies-script{font-family:Allura,cursive;font-size:clamp(83px,12vw,126px);line-height:.9;color:#fff;text-shadow:0 0 7px #fff,0 0 20px #ded4dd;transform:rotate(-7deg)}
+.selfies-bow{position:absolute;bottom:0;left:50%;transform:translateX(-50%);font-size:120px;line-height:1;z-index:3;filter:drop-shadow(0 2px 10px #d27cad)}
+.selfies-line{width:min(95%,520px);height:2px;background:#e6a0c2;margin:0 auto 63px}
+.selfies-thanks{font-family:'Cormorant Garamond',serif;font-size:clamp(28px,5vw,43px);font-weight:300;line-height:1.25;letter-spacing:.15em;margin:0}
+.selfies-signoff{display:flex;flex-direction:column;align-items:center;margin-top:18px}
+.selfies-signoff span{font-family:'Cormorant Garamond',serif;font-size:clamp(49px,7vw,73px);letter-spacing:.12em;color:#ffb5d5;text-shadow:0 0 8px #ff92c6,0 0 19px #e875aa;line-height:1}
+.selfies-signoff em{font-family:Allura,cursive;font-style:normal;color:#fff;font-size:69px;line-height:.8;transform:rotate(-10deg);text-shadow:0 0 9px #fff,0 0 22px #eee}
+@media(max-width:500px){.selfies-panel{padding-top:55px;min-height:690px}.selfies-heart{height:305px}.heart-shape{font-size:325px;top:-58px}.heart-words{top:58px}.selfies-bow{font-size:89px;bottom:5px}.selfies-line{margin-bottom:48px}}
