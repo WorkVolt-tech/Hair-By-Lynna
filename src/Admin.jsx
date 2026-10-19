@@ -69,15 +69,7 @@ export default function Admin(){
    if(replaceExisting && [...dates].some(d=>protectedDates.has(d)))throw new Error(lang==='fr'?'Certaines dates ont des rendez-vous en attente ou approuvés. Modifiez-les individuellement.':'Some selected dates have pending or approved appointments. Edit these dates individually.');
    const overlaps=(a,b)=>a.start_time<b.end_time && a.end_time>b.start_time;
    const safe=replaceExisting?rows:rows.filter(r=>!availability.some(s=>s.date===r.date&&overlaps(s,r)));
-   if(replaceExisting){
-     const ids=availability.filter(s=>dates.has(s.date)).map(s=>s.id);
-     // Do not delete existing windows before checking for appointments. Changes
-     // are limited to authorized admins by RLS.
-     for(let i=0;i<ids.length;i+=100){
-       const {error}=await supabase.from('availability').delete().in('id',ids.slice(i,i+100));
-       if(error)throw error;
-     }
-   }
+   if(replaceExisting)throw new Error(lang==='fr'?'Le remplacement en bloc sera activé après ajout des transactions sécurisées. Utilisez Modifier pour les dates particulières.':'Bulk replacement requires a database transaction and is not enabled yet. Use Edit for individual dates.');
    for(let i=0;i<safe.length;i+=100){
      const {error}=await supabase.from('availability').insert(safe.slice(i,i+100));
      if(error)throw error;
