@@ -29,3 +29,6 @@ section[id]{scroll-margin-top:90px}
 .wordmark{display:flex;align-items:center;line-height:0}
 .wordmark img{height:52px;width:auto;display:block}
 @media(max-width:750px){.wordmark img{height:42px}}
+/* Neon logo in the hero */
+h1.hero-title{margin:0;align-items:center}
+.hero-logo{width:min(620px,88vw);height:auto;display:block;margin:6px auto 18px}
