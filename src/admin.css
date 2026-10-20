@@ -212,3 +212,9 @@
 
 .appointment-actions .appointment-cancel{color:#ffb1bd;border-color:#b76a78}
 .appointment-actions .appointment-cancel:hover{background:#431b29}
+
+/* Explicitly destructive dashboard action */
+.admin-danger-zone{border:1px solid #a35366;border-radius:8px;padding:14px;margin:12px 0 20px;background:#260f19;max-width:100%;box-sizing:border-box}
+.admin-danger-zone strong{color:#ffd2df}
+.admin-danger-zone .admin-danger-button{background:#6e2035;border:1px solid #c37688;border-radius:5px;color:#fff;padding:12px 18px;min-height:44px;max-width:100%;cursor:pointer}
+@media(max-width:700px){.admin-danger-zone .admin-danger-button{width:100%;white-space:normal}}
