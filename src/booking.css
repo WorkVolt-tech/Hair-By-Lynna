@@ -29,3 +29,9 @@
 .booking-agreement input{width:18px;height:18px;flex:none;accent-color:#d58bac}
 .booking-summary code{display:block;overflow-wrap:anywhere;color:#e9bad1;font-size:12px}
 .booking-details button{cursor:pointer}
+
+.booking-service-picker{display:flex;flex-direction:column;gap:10px;text-align:left;min-width:0;color:#f4c4dc;font-size:13px}
+.booking-service-picker select{width:100%;max-width:100%;min-width:0;box-sizing:border-box;min-height:54px;border:1px solid #bd7a9c;border-radius:7px;background:#271421;color:#fff;padding:12px 14px;font:inherit;font-size:16px;cursor:pointer}
+.booking-service-picker select:focus-visible{outline:2px solid #f3b5d1;outline-offset:2px}
+.booking-service-selection{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;border:1px solid #bd7a9c;border-radius:7px;background:#45263c;padding:14px;margin-top:12px;text-align:left}
+.booking-service-selection span{color:#e9c6da;font-size:12px}
