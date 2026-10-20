@@ -218,3 +218,11 @@
 .admin-danger-zone strong{color:#ffd2df}
 .admin-danger-zone .admin-danger-button{background:#6e2035;border:1px solid #c37688;border-radius:5px;color:#fff;padding:12px 18px;min-height:44px;max-width:100%;cursor:pointer}
 @media(max-width:700px){.admin-danger-zone .admin-danger-button{width:100%;white-space:normal}}
+
+/* Service ordering controls */
+.service-edit-actions .service-move{min-width:69px;border-color:#aa7892;background:#281522;color:#f9c9df}
+.service-edit-actions .service-move:disabled{opacity:.3}
+@media(max-width:700px){
+ .service-admin-item>.service-edit-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .service-admin-item>.service-edit-actions .service-move{grid-column:auto}
+}
