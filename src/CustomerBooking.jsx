@@ -14,6 +14,14 @@ export default function CustomerBooking({language}){
  const [serviceId,setServiceId]=useState(''),[day,setDay]=useState(''),[time,setTime]=useState(null);
  const [liveSlots,setLiveSlots]=useState([]),[slotsBusy,setSlotsBusy]=useState(false),[slotsReady,setSlotsReady]=useState(false);
  const [clientName,setClientName]=useState(''),[clientEmail,setClientEmail]=useState(''),[clientPhone,setClientPhone]=useState(''),[agreed,setAgreed]=useState(false),[sending,setSending]=useState(false),[success,setSuccess]=useState('');
+ const [changePulse,setChangePulse]=useState(0);
+ useEffect(()=>{
+  if(!supabase)return;
+  const channel=supabase.channel('lynna-public-booking-pulse')
+   .on('postgres_changes',{event:'UPDATE',schema:'public',table:'booking_change_signal',filter:'id=eq.1'},()=>setChangePulse(n=>n+1))
+   .subscribe();
+  return()=>{supabase.removeChannel(channel)};
+ },[]);
  const [month,setMonth]=useState(()=>{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit'}).formatToParts(new Date());return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value});
  useEffect(()=>{
   let live=true,requesting=false;
@@ -34,7 +42,7 @@ export default function CustomerBooking({language}){
   document.addEventListener('visibilitychange',refreshOnReturn);
   const timer=setInterval(()=>{if(document.visibilityState==='visible')load()},5000);
   return()=>{live=false;clearInterval(timer);window.removeEventListener('focus',refreshOnReturn);document.removeEventListener('visibilitychange',refreshOnReturn)};
- },[language]);
+ },[language,changePulse]);
  const [clockNow,setClockNow]=useState(()=>Date.now());
  useEffect(()=>{const id=setInterval(()=>setClockNow(Date.now()),30000);return()=>clearInterval(id)},[]);
  const todayMontreal=useMemo(()=>{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());return ['year','month','day'].map(type=>parts.find(p=>p.type===type).value).join('-')},[]);
@@ -69,7 +77,7 @@ export default function CustomerBooking({language}){
   document.addEventListener('visibilitychange',onReturn);
   const timer=window.setInterval(()=>{if(document.visibilityState==='visible')refreshSlots()},5000);
   return()=>{live=false;clearInterval(timer);window.removeEventListener('focus',onReturn);document.removeEventListener('visibilitychange',onReturn)};
- },[serviceId,day,language]);
+ },[serviceId,day,language,changePulse]);
  const cells=useMemo(()=>monthCells(month),[month]);
  function changeMonth(direction){const [y,m]=month.split('-').map(Number);const next=new Date(y,m-1+direction,1);setMonth(dateKey(next).slice(0,7))}
  const todayHint=fr?'Les réservations doivent être faites au moins 24 heures à l’avance. Une date peut apparaître indisponible si aucun créneau ne correspond à la durée du service.':'Bookings must be made at least 24 hours ahead. A date may also be unavailable if the service cannot fit into an open time window.';
