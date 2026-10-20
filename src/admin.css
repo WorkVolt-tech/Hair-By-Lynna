@@ -199,3 +199,10 @@
  .service-admin-item>.service-edit-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
  .service-admin-item>.service-edit-actions .service-delete{grid-column:1/-1}
 }
+
+/* Approved appointment rescheduling */
+.appointment-edit-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;min-width:0;margin-top:14px;border:1px solid #684259;border-radius:7px;padding:14px;box-sizing:border-box}
+.appointment-edit-form label{min-width:0}
+.appointment-edit-form input{width:100%;max-width:100%;min-width:0;box-sizing:border-box;font-size:16px}
+.appointment-edit-form .admin-error,.appointment-edit-form .admin-muted,.appointment-edit-form .appointment-actions{grid-column:1/-1}
+@media(max-width:700px){.appointment-edit-form{grid-template-columns:minmax(0,1fr);padding:10px}.appointment-edit-form .appointment-actions{grid-column:1}}
