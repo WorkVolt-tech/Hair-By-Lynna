@@ -226,3 +226,11 @@
  .service-admin-item>.service-edit-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
  .service-admin-item>.service-edit-actions .service-move{grid-column:auto}
 }
+
+/* Drag to reorder: touch handle, mouse handle, or accessible Up/Down controls */
+.service-drag-row{display:flex;flex:1 1 220px;min-width:0;align-items:center;gap:12px}
+.service-drag-row .service-summary{flex:1;min-width:0}
+.service-drag-handle{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;flex:0 0 44px;min-height:44px;border:1px solid #a87994!important;border-radius:7px;color:#f4c4dd!important;background:#301b29!important;font-size:26px!important;line-height:1;padding:5px!important;display:flex;align-items:center;justify-content:center}
+.service-drag-handle:active{cursor:grabbing}
+.service-drop-target{border-color:#eab0cd!important;box-shadow:inset 0 0 0 1px #eab0cd;background:#291823}
+@media(max-width:700px){.service-drag-row{flex:1 1 100%;width:100%}.service-drag-handle{flex-basis:44px}}
