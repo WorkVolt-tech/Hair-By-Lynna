@@ -41,14 +41,31 @@ export default function CustomerBooking({language}){
  for(const w of windows){const begin=mins(w.starts),end=mins(w.ends);if(!result[w.day])result[w.day]=[];
    for(let t=Math.ceil(begin/30)*30;t+service.duration_minutes<=end;t+=30){if(!result[w.day].includes(t))result[w.day].push(t)}
  }return result},[service,windows]);
- useEffect(()=>{let live=true;setLiveSlots([]);setSlotsReady(false);if(!supabase||!serviceId||!day)return;
- setSlotsBusy(true);
- supabase.rpc('public_booking_slots',{p_service_id:serviceId,p_day:day}).then(({data,error})=>{
-  if(!live)return;
-  if(!error){setLiveSlots([...new Set((data||[]).map(x=>mins(x.slot_time)))].sort((a,b)=>a-b));setSlotsReady(true)}
-  else setError(fr?'Les heures exactes ne sont pas encore disponibles.':'Exact appointment times are not available yet.');
- }).finally(()=>{if(live)setSlotsBusy(false)});
- return()=>{live=false};
+ useEffect(()=>{
+  let live=true,loadingSlots=false;
+  setLiveSlots([]);setSlotsReady(false);
+  if(!supabase||!serviceId||!day)return;
+  async function refreshSlots(){
+   if(!live||loadingSlots)return;
+   loadingSlots=true;setSlotsBusy(true);
+   try{
+    const {data,error}=await supabase.rpc('public_booking_slots',{p_service_id:serviceId,p_day:day});
+    if(!live)return;
+    if(error){setError(fr?'Les heures exactes ne sont pas disponibles pour le moment.':'Exact appointment times are not available right now.')}
+    else{
+     const available=[...new Set((data||[]).map(x=>mins(x.slot_time)))].sort((a,b)=>a-b);
+     setLiveSlots(available);setSlotsReady(true);
+     setTime(selected=>selected!==null&&!available.includes(selected)?null:selected);
+     setError('');
+    }
+   }finally{loadingSlots=false;if(live)setSlotsBusy(false)}
+  }
+  function onReturn(){if(document.visibilityState==='visible')refreshSlots()}
+  refreshSlots();
+  window.addEventListener('focus',onReturn);
+  document.addEventListener('visibilitychange',onReturn);
+  const timer=window.setInterval(()=>{if(document.visibilityState==='visible')refreshSlots()},10000);
+  return()=>{live=false;clearInterval(timer);window.removeEventListener('focus',onReturn);document.removeEventListener('visibilitychange',onReturn)};
  },[serviceId,day,language]);
  const cells=useMemo(()=>monthCells(month),[month]);
  function changeMonth(direction){const [y,m]=month.split('-').map(Number);const next=new Date(y,m-1+direction,1);setMonth(dateKey(next).slice(0,7))}
