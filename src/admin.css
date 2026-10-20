@@ -209,3 +209,6 @@
 
 .appointment-reference{margin:8px 0;color:#e6b5ce;font-size:12px;overflow-wrap:anywhere}
 .appointment-reference strong{letter-spacing:.05em;color:#ffe1ee}
+
+.appointment-actions .appointment-cancel{color:#ffb1bd;border-color:#b76a78}
+.appointment-actions .appointment-cancel:hover{background:#431b29}
