@@ -32,3 +32,12 @@ section[id]{scroll-margin-top:90px}
 /* Neon logo in the hero */
 h1.hero-title{margin:0;align-items:center}
 .hero-logo{width:min(620px,88vw);height:auto;display:block;margin:6px auto 18px}
+
+/* Hair purchasing guide: knotless pre-stretched hair only */
+.hair-to-buy{scroll-margin-top:100px;text-align:center}
+.hair-guide-card{max-width:760px;margin:22px auto 0;padding:30px 26px;border:1px solid #86516f;background:linear-gradient(155deg,#190c16,#090609);border-radius:12px;text-align:center}
+.hair-guide-card h3{font-family:'Cormorant Garamond',serif;color:#f4bfd8;font-size:clamp(25px,4vw,36px);font-weight:400;margin:0 0 15px}
+.hair-guide-card p{color:#f9e3ee;line-height:1.85;font-size:clamp(13px,1.8vw,16px)}
+.hair-guide-card strong{color:#f3bad5}
+.hair-guide-card .hair-guide-warning{color:#ffafa6;font-weight:600;text-transform:uppercase;letter-spacing:.035em;font-size:13px;margin:20px auto 0}
+@media(max-width:600px){.hair-guide-card{padding:20px 16px}}
