@@ -20,3 +20,12 @@
 .customer-booking .booking-notice{color:#efbecf;font-size:12px;line-height:1.7}
 .customer-booking .booking-footnote{max-width:none;text-align:center;font-size:11px;line-height:1.8;color:#aaa}
 @media(max-width:540px){.customer-booking{margin-top:22px}.booking-services{grid-template-columns:minmax(0,1fr)}.booking-days{gap:3px}.booking-days button{min-height:43px;font-size:13px}.booking-month strong{font-size:21px}.booking-time-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Customer details are stacked so iPhone Safari never stretches the card. */
+.booking-details{display:grid;grid-template-columns:minmax(0,1fr);gap:13px;margin-top:20px;min-width:0}
+.booking-details label{display:flex;flex-direction:column;gap:7px;font-size:12px;color:#efd0df;min-width:0;text-align:left}
+.booking-details input:not([type="checkbox"]){width:100%;min-width:0;max-width:100%;box-sizing:border-box;border:1px solid #885c72;border-radius:5px;background:#0b070a;color:#fff;padding:12px;font:inherit;font-size:16px}
+.booking-details .booking-agreement{display:flex;align-items:flex-start;flex-direction:row;gap:10px;line-height:1.65}
+.booking-agreement input{width:18px;height:18px;flex:none;accent-color:#d58bac}
+.booking-summary code{display:block;overflow-wrap:anywhere;color:#e9bad1;font-size:12px}
+.booking-details button{cursor:pointer}
