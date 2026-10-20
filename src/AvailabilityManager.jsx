@@ -46,10 +46,10 @@ export default function AvailabilityManager({lang,availability,day,setDay,start,
    {mode==='bulk'?<form onSubmit={makePreview} className="bulk-editor">
      <h3>{fr?'Publier plusieurs journées':'Publish multiple days'}</h3>
      <div className="admin-form">
-       <label>{fr?'Du':'From'}<input type="date" required value={from} onChange={e=>{setFrom(e.target.value);setPreview(null)}}/></label>
-       <label>{fr?'Au':'To'}<input type="date" required min={from} value={to} onChange={e=>{setTo(e.target.value);setPreview(null)}}/></label>
-       <label>{fr?'Début':'Start'}<input type="time" required value={bulkStart} onChange={e=>{setBulkStart(e.target.value);setPreview(null)}}/></label>
-       <label>{fr?'Fin':'End'}<input type="time" required value={bulkEnd} onChange={e=>{setBulkEnd(e.target.value);setPreview(null)}}/></label>
+       <label>{fr?'Du':'From'}<span className="datetime-control"><input type="date" required value={from} onChange={e=>{setFrom(e.target.value);setPreview(null)}}/></span></label>
+       <label>{fr?'Au':'To'}<span className="datetime-control"><input type="date" required min={from} value={to} onChange={e=>{setTo(e.target.value);setPreview(null)}}/></span></label>
+       <label>{fr?'Début':'Start'}<span className="datetime-control"><input type="time" required value={bulkStart} onChange={e=>{setBulkStart(e.target.value);setPreview(null)}}/></span></label>
+       <label>{fr?'Fin':'End'}<span className="datetime-control"><input type="time" required value={bulkEnd} onChange={e=>{setBulkEnd(e.target.value);setPreview(null)}}/></span></label>
      </div>
      <p className="admin-muted">{fr?'Choisissez les jours de la semaine':'Choose recurring weekdays'}</p>
      <div className="weekday-picker">{(fr?weekdaysFr:weekdaysEn).map((label,i)=><label key={i} className={weekdays.includes(i)?'chosen':''}><input type="checkbox" checked={weekdays.includes(i)} onChange={e=>{setWeekdays(v=>e.target.checked?[...v,i]:v.filter(x=>x!==i));setPreview(null)}}/>{label}</label>)}</div>
@@ -58,14 +58,14 @@ export default function AvailabilityManager({lang,availability,day,setDay,start,
      <button className="admin-primary" type="submit" disabled={busy}>{fr?'Prévisualiser les dates':'Preview dates'}</button>
      {preview&&<div className="bulk-preview"><strong>{preview.rows.length} {fr?'journées sélectionnées':'selected days'}</strong><p>{preview.conflicts.length} {fr?'chevauchements détectés':'overlaps detected'}</p><p className="admin-muted">{replacement?(fr?'Les plages existantes seront remplacées après confirmation.':'Existing windows will be replaced after confirmation.'):(fr?'Seules les plages sans conflit seront ajoutées.':'Only non-conflicting windows will be added.')}</p><button type="button" className="admin-primary" disabled={busy} onClick={commit}>{fr?'Confirmer et enregistrer':'Confirm and save'}</button></div>}
    </form>:<form className="admin-form" onSubmit={onAdd}>
-      <label>{fr?'Date':'Date'}<input type="date" required value={day} onChange={e=>setDay(e.target.value)}/></label>
-      <label>{fr?'Début':'Start'}<input type="time" required value={start} onChange={e=>setStart(e.target.value)}/></label>
-      <label>{fr?'Fin':'End'}<input type="time" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
+      <label>{fr?'Date':'Date'}<span className="datetime-control"><input type="date" required value={day} onChange={e=>setDay(e.target.value)}/></span></label>
+      <label>{fr?'Début':'Start'}<span className="datetime-control"><input type="time" required value={start} onChange={e=>setStart(e.target.value)}/></span></label>
+      <label>{fr?'Fin':'End'}<span className="datetime-control"><input type="time" required value={end} onChange={e=>setEnd(e.target.value)}/></span></label>
       <button type="submit" disabled={busy}>{fr?'Ajouter une disponibilité':'Add availability'}</button>
      </form>}
    <h3 className="schedule-day-title">{fr?'Modifier le':'Edit'} {day}</h3>
    <div className="admin-items">{selected.length===0?<p className="admin-muted">{fr?'Aucune plage pour cette journée.':'No windows for this date.'}</p>:selected.map(s=><div className="admin-item slot-edit-row" key={s.id}>
-     {editId===s.id?<div className="slot-edit-fields"><div className="slot-edit-times"><label>{fr?'Début':'Start'}<input type="time" value={editStart} onChange={e=>setEditStart(e.target.value)}/></label><label>{fr?'Fin':'End'}<input type="time" value={editEnd} onChange={e=>setEditEnd(e.target.value)}/></label></div><div className="slot-edit-actions"><button className="slot-save" disabled={busy} onClick={()=>saveEdit(s)} type="button">{fr?'Enregistrer':'Save'}</button><button className="slot-cancel" disabled={busy} onClick={()=>setEditId(null)} type="button">{fr?'Annuler':'Cancel'}</button></div></div>:<><span>{s.start_time.slice(0,5)}–{s.end_time.slice(0,5)}</span><div className="slot-row-actions"><button type="button" disabled={busy} onClick={()=>edit(s)}>{fr?'Modifier':'Edit'}</button><button type="button" disabled={busy} onClick={()=>onDelete(s.id)}>{fr?'Supprimer':'Remove'}</button></div></>}
+     {editId===s.id?<div className="slot-edit-fields"><div className="slot-edit-times"><label>{fr?'Début':'Start'}<span className="datetime-control"><input type="time" value={editStart} onChange={e=>setEditStart(e.target.value)}/></span></label><label>{fr?'Fin':'End'}<span className="datetime-control"><input type="time" value={editEnd} onChange={e=>setEditEnd(e.target.value)}/></span></label></div><div className="slot-edit-actions"><button className="slot-save" disabled={busy} onClick={()=>saveEdit(s)} type="button">{fr?'Enregistrer':'Save'}</button><button className="slot-cancel" disabled={busy} onClick={()=>setEditId(null)} type="button">{fr?'Annuler':'Cancel'}</button></div></div>:<><span>{s.start_time.slice(0,5)}–{s.end_time.slice(0,5)}</span><div className="slot-row-actions"><button type="button" disabled={busy} onClick={()=>edit(s)}>{fr?'Modifier':'Edit'}</button><button type="button" disabled={busy} onClick={()=>onDelete(s.id)}>{fr?'Supprimer':'Remove'}</button></div></>}
    </div>)}</div>{message&&<p role="status" className="admin-muted">{message}</p>}
  </div>
 }
