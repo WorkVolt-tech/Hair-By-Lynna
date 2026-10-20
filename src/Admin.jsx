@@ -171,7 +171,7 @@ export default function Admin(){
   setBusy(false);
  }
  async function addService(e){e.preventDefault();setBusy(true);setError('');
-  const {error}=await supabase.from('services').insert({name_en:nameEn.trim(),name_fr:nameFr.trim(),duration_minutes:Number(minutes),price_cents:Math.round(Number(price)*100),active:false});
+  const {error}=await supabase.from('services').insert({name_en:nameEn.trim(),name_fr:nameFr.trim(),duration_minutes:Number(minutes),price_cents:Math.round(Number(price)*100),active:false,sort_order:Math.max(0,...services.map(s=>s.sort_order||0))+10});
   if(error)setError(error.message);else{setNameEn('');setNameFr('');await reload()}setBusy(false);
  }
  function beginServiceEdit(s){setError('');setServiceMessage('');setEditingService(s.id);setServiceDraft({name_en:s.name_en||'',name_fr:s.name_fr||'',description_en:s.description_en||'',description_fr:s.description_fr||'',duration_minutes:String(s.duration_minutes),price:String((s.price_cents/100).toFixed(2))})}
@@ -206,7 +206,7 @@ export default function Admin(){
  }
  async function moveService(serviceId,direction){
   if(busy)return;
-  const ordered=[...services].sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)||a.created_at?.localeCompare(b.created_at||'')||0||a.id.localeCompare(b.id));
+  const ordered=[...services].sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)||String(a.created_at||'').localeCompare(String(b.created_at||''))||a.id.localeCompare(b.id));
   const idx=ordered.findIndex(s=>s.id===serviceId),other=idx+direction;
   if(idx<0||other<0||other>=ordered.length)return;
   // Persist a complete unambiguous order even when older services all have sort_order=0.
