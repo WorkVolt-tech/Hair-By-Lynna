@@ -42,6 +42,35 @@ export default function Admin(){
   else{setAvailability(a.data||[]);setServices(s.data||[]);setAppointments(p.data||[])}
  }
  useEffect(()=>{if(role)reload()},[role]);
+ // Receive changes instantly via Supabase Realtime when enabled. Keep a short
+ // visibility-aware poll as a fallback if Realtime is not in the publication.
+ useEffect(()=>{
+  if(!supabase||!role||!session?.user?.id)return;
+  let alive=true,fetching=false,queued=false;
+  async function syncAppointments(){
+   if(!alive)return;
+   if(fetching){queued=true;return}
+   fetching=true;
+   do{
+    queued=false;
+    const {data,error}=await supabase.from('appointments')
+      .select('*, services(name_en,name_fr)')
+      .order('starts_at',{ascending:false}).limit(100);
+    if(!alive)break;
+    if(!error)setAppointments(data||[]);
+   }while(alive&&queued);
+   fetching=false;
+  }
+  const channel=supabase.channel('lynna-admin-appointments-'+session.user.id)
+   .on('postgres_changes',{event:'*',schema:'public',table:'appointments'},()=>{syncAppointments()})
+   .subscribe(status=>{if(status==='SUBSCRIBED')syncAppointments()});
+  function onVisible(){if(document.visibilityState==='visible')syncAppointments()}
+  window.addEventListener('focus',onVisible);
+  document.addEventListener('visibilitychange',onVisible);
+  const timer=window.setInterval(()=>{if(document.visibilityState==='visible')syncAppointments()},10000);
+  return()=>{alive=false;window.clearInterval(timer);window.removeEventListener('focus',onVisible);document.removeEventListener('visibilitychange',onVisible);supabase.removeChannel(channel)};
+ },[role,session?.user?.id]);
+
  async function login(e){e.preventDefault();setError('');setBusy(true);
   const {error}=await supabase.auth.signInWithPassword({email:email.trim(),password});
   if(error)setError(error.message);setBusy(false);
