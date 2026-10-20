@@ -69,13 +69,43 @@ export default function Admin(){
   function onVisible(){if(document.visibilityState==='visible')syncAppointments()}
   window.addEventListener('focus',onVisible);
   document.addEventListener('visibilitychange',onVisible);
-  const timer=window.setInterval(()=>{if(document.visibilityState==='visible')syncAppointments()},10000);
+  const timer=window.setInterval(()=>{if(document.visibilityState==='visible')syncAppointments()},5000);
   return()=>{alive=false;window.clearInterval(timer);window.removeEventListener('focus',onVisible);document.removeEventListener('visibilitychange',onVisible);supabase.removeChannel(channel)};
  },[role,session?.user?.id]);
 
+ useEffect(()=>{
+  if(!supabase||!role)return;
+  let alive=true,fetching=false;
+  async function refreshLists(){
+   if(!alive||fetching)return;
+   fetching=true;
+   const [a,s]=await Promise.all([supabase.from('availability').select('*').order('date').order('start_time'),supabase.from('services').select('*').order('sort_order')]);
+   if(alive){if(!a.error)setAvailability(a.data||[]);if(!s.error)setServices(s.data||[])}
+   fetching=false;
+  }
+  const channel=supabase.channel('lynna-admin-availability-services-'+session.user.id)
+   .on('postgres_changes',{event:'*',schema:'public',table:'availability'},refreshLists)
+   .on('postgres_changes',{event:'*',schema:'public',table:'services'},refreshLists)
+   .subscribe();
+  const onFocus=()=>{if(document.visibilityState==='visible')refreshLists()};
+  window.addEventListener('focus',onFocus);document.addEventListener('visibilitychange',onFocus);
+  const id=window.setInterval(onFocus,5000);
+  return()=>{alive=false;clearInterval(id);window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onFocus);supabase.removeChannel(channel)};
+ },[role,session?.user?.id]);
  async function login(e){e.preventDefault();setError('');setBusy(true);
   const {error}=await supabase.auth.signInWithPassword({email:email.trim(),password});
   if(error)setError(error.message);setBusy(false);
+ }
+ async function clearAllSchedules(){
+  if(busy)return;
+  const message=lang==='fr'?'DANGER : cela supprimera définitivement TOUTES les disponibilités ET TOUS les rendez-vous, y compris les rendez-vous confirmés. Cette action est irréversible.':'DANGER: This permanently deletes ALL availability AND ALL appointments, including confirmed bookings. This cannot be undone.';
+  if(!window.confirm(message))return;
+  const confirmation=window.prompt(lang==='fr'?'Pour confirmer, écrivez exactement DELETE ALL APPOINTMENTS :':'To confirm, type DELETE ALL APPOINTMENTS exactly:');
+  if(confirmation!=='DELETE ALL APPOINTMENTS')return;
+  setBusy(true);setError('');
+  const {error}=await supabase.rpc('admin_clear_all_schedules',{p_confirmation:confirmation});
+  if(error)setError(error.message);else await reload();
+  setBusy(false);
  }
  async function addSlot(e){e.preventDefault();setError('');if(end<=start){setError(lang==='fr'?"L'heure de fin doit être après le début.":'End time must be after start time.');return}
   if(availability.some(s=>s.date===day&&s.enabled&&start<s.end_time&&end>s.start_time)){setError(lang==='fr'?'Cette plage chevauche une disponibilité existante.':'This time window overlaps an existing availability window.');return}
@@ -177,7 +207,7 @@ export default function Admin(){
  async function toggleService(s){setBusy(true);setError('');const {error}=await supabase.from('services').update({active:!s.active}).eq('id',s.id);
   if(error)setError(error.message);else await reload();setBusy(false);
  }
- return <div className="admin-page"><header className="admin-bar"><a href="/" className="admin-logo"><img src="/images/hair-by-lynna-logo.webp" alt="Hair by Lynna" width="140" height="48"/></a><div className="admin-actions"><button type="button" onClick={()=>setLang(lang==='fr'?'en':'fr')}>{lang==='fr'?'EN':'FR'}</button><a href="/">{t.back}</a>{session&&<button type="button" onClick={()=>supabase.auth.signOut()}><LogOut size={15}/>{t.signOut}</button>}</div></header><main className="admin-main"><h1>{t.title}</h1>{!supabase?<div className="admin-panel">{t.missing}</div>:loading?<p>{t.loading}</p>:!session?<form className="admin-panel admin-login" onSubmit={login}><LockKeyhole size={27} color="#eeb1d0"/><h2>{t.signIn}</h2><label>{t.email}<input type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)}/></label><label>{t.password}<input type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></label><button disabled={busy} type="submit">{t.enter}</button></form>:!role?<div className="admin-panel">{t.noAccess}</div>:<><p className="admin-muted">{session.user.email} · {role==='owner'?'Owner':'Tester'}</p><div className="admin-tabs">{[['availability',CalendarDays],['appointments',ClipboardList],['services',Scissors]].map(([item,Icon])=><button type="button" className={tab===item?'current':''} onClick={()=>setTab(item)} key={item}><Icon size={18}/>{t[item]}</button>)}</div><p className="admin-muted">{t.review}</p>{tab==='availability'&&<section className="admin-panel"><h2>{t.availability}</h2><p className="admin-muted">{t.note}</p><AvailabilityCalendar lang={lang} day={day} setDay={setDay} availability={availability} onMove={moveSlot} busy={busy}/><AvailabilityManager lang={lang} availability={availability} day={day} setDay={setDay} start={start} setStart={setStart} end={end} setEnd={setEnd} busy={busy} onAdd={addSlot} onDelete={deleteSlot} onUpdate={updateSlot} onBulk={bulkSave}/> </section>}{tab==='services'&&<section className="admin-panel"><h2>{t.services}</h2><form className="admin-form" onSubmit={addService}><label>{t.nameEn}<input required value={nameEn} onChange={e=>setNameEn(e.target.value)}/></label><label>{t.nameFr}<input required value={nameFr} onChange={e=>setNameFr(e.target.value)}/></label><label>{t.minutes}<input type="number" min="15" max="960" required value={minutes} onChange={e=>setMinutes(e.target.value)}/></label><label>{t.price}<input type="number" min="0" step=".01" required value={price} onChange={e=>setPrice(e.target.value)}/></label><button disabled={busy} type="submit">{t.addService}</button></form><div className="admin-items">{services.length===0?t.noServices:services.map(s=><div className="admin-item service-admin-item" key={s.id}>
+ return <div className="admin-page"><header className="admin-bar"><a href="/" className="admin-logo"><img src="/images/hair-by-lynna-logo.webp" alt="Hair by Lynna" width="140" height="48"/></a><div className="admin-actions"><button type="button" onClick={()=>setLang(lang==='fr'?'en':'fr')}>{lang==='fr'?'EN':'FR'}</button><a href="/">{t.back}</a>{session&&<button type="button" onClick={()=>supabase.auth.signOut()}><LogOut size={15}/>{t.signOut}</button>}</div></header><main className="admin-main"><h1>{t.title}</h1>{!supabase?<div className="admin-panel">{t.missing}</div>:loading?<p>{t.loading}</p>:!session?<form className="admin-panel admin-login" onSubmit={login}><LockKeyhole size={27} color="#eeb1d0"/><h2>{t.signIn}</h2><label>{t.email}<input type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)}/></label><label>{t.password}<input type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></label><button disabled={busy} type="submit">{t.enter}</button></form>:!role?<div className="admin-panel">{t.noAccess}</div>:<><p className="admin-muted">{session.user.email} · {role==='owner'?'Owner':'Tester'}</p><div className="admin-tabs">{[['availability',CalendarDays],['appointments',ClipboardList],['services',Scissors]].map(([item,Icon])=><button type="button" className={tab===item?'current':''} onClick={()=>setTab(item)} key={item}><Icon size={18}/>{t[item]}</button>)}</div><p className="admin-muted">{t.review}</p>{tab==='availability'&&<section className="admin-panel"><h2>{t.availability}</h2><p className="admin-muted">{t.note}</p><div className="admin-danger-zone"><strong>{lang==='fr'?'Réinitialiser toute la planification':'Reset all scheduling'}</strong><p className="admin-muted">{lang==='fr'?'Supprime définitivement TOUTES les disponibilités et TOUS les rendez-vous.':'Permanently deletes ALL availability AND ALL appointments.'}</p><button type="button" className="admin-danger-button" disabled={busy} onClick={clearAllSchedules}>{lang==='fr'?'Tout effacer':'Clear all schedules and appointments'}</button></div><AvailabilityCalendar lang={lang} day={day} setDay={setDay} availability={availability} onMove={moveSlot} busy={busy}/><AvailabilityManager lang={lang} availability={availability} day={day} setDay={setDay} start={start} setStart={setStart} end={end} setEnd={setEnd} busy={busy} onAdd={addSlot} onDelete={deleteSlot} onUpdate={updateSlot} onBulk={bulkSave}/> </section>}{tab==='services'&&<section className="admin-panel"><h2>{t.services}</h2><form className="admin-form" onSubmit={addService}><label>{t.nameEn}<input required value={nameEn} onChange={e=>setNameEn(e.target.value)}/></label><label>{t.nameFr}<input required value={nameFr} onChange={e=>setNameFr(e.target.value)}/></label><label>{t.minutes}<input type="number" min="15" max="960" required value={minutes} onChange={e=>setMinutes(e.target.value)}/></label><label>{t.price}<input type="number" min="0" step=".01" required value={price} onChange={e=>setPrice(e.target.value)}/></label><button disabled={busy} type="submit">{t.addService}</button></form><div className="admin-items">{services.length===0?t.noServices:services.map(s=><div className="admin-item service-admin-item" key={s.id}>
  {editingService===s.id&&serviceDraft?<form className="service-edit-form" onSubmit={saveService}>
    <h3>{lang==='fr'?'Modifier le service':'Edit service'}</h3>
    <div className="service-edit-grid">
