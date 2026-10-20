@@ -206,3 +206,6 @@
 .appointment-edit-form input{width:100%;max-width:100%;min-width:0;box-sizing:border-box;font-size:16px}
 .appointment-edit-form .admin-error,.appointment-edit-form .admin-muted,.appointment-edit-form .appointment-actions{grid-column:1/-1}
 @media(max-width:700px){.appointment-edit-form{grid-template-columns:minmax(0,1fr);padding:10px}.appointment-edit-form .appointment-actions{grid-column:1}}
+
+.appointment-reference{margin:8px 0;color:#e6b5ce;font-size:12px;overflow-wrap:anywhere}
+.appointment-reference strong{letter-spacing:.05em;color:#ffe1ee}
