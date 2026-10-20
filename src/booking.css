@@ -35,3 +35,7 @@
 .booking-service-picker select:focus-visible{outline:2px solid #f3b5d1;outline-offset:2px}
 .booking-service-selection{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;border:1px solid #bd7a9c;border-radius:7px;background:#45263c;padding:14px;margin-top:12px;text-align:left}
 .booking-service-selection span{color:#e9c6da;font-size:12px}
+
+.booking-friendly-reference{display:flex;align-items:flex-start;flex-direction:column;gap:8px;margin-top:12px;padding:14px;border:1px solid #9e6687;border-radius:7px;background:#34202c;max-width:100%;overflow-wrap:anywhere}
+.booking-friendly-reference span{color:#dcb4c8;font-size:12px}
+.booking-friendly-reference strong{color:#ffe5f0;font-size:clamp(16px,4vw,24px);letter-spacing:.08em;font-weight:600}
