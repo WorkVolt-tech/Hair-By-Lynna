@@ -52,3 +52,6 @@ h1.hero-title{margin:0;align-items:center}
 .service-photo img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s ease}
 .service-card:hover .service-photo img{transform:scale(1.04)}
 @media(prefers-reduced-motion:reduce){.service-photo img{transition:none}}
+/* Hair to Buy product photo */
+.hair-product-photo{display:flex;justify-content:center;margin:0 auto 26px}
+.hair-product-photo img{height:clamp(300px,48vw,380px);width:auto;display:block;filter:drop-shadow(0 14px 26px rgba(0,0,0,.55))}
