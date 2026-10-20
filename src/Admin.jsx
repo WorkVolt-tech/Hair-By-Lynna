@@ -108,6 +108,20 @@ export default function Admin(){
   if(error){setServiceMessage(error.message)}else{await reload();setEditingService(null);setServiceDraft(null)}
   setBusy(false);
  }
+ async function deleteService(s){
+  if(busy)return;
+  const title=lang==='fr'?s.name_fr:s.name_en;
+  const confirmed=window.confirm(lang==='fr'?`Supprimer définitivement « ${title} » ? Cette action est irréversible. Les services avec des rendez-vous ne peuvent pas être supprimés.`:`Permanently delete "${title}"? This cannot be undone. Services with appointments cannot be deleted.`);
+  if(!confirmed)return;
+  setBusy(true);setError('');
+  const {count,error:checkError}=await supabase.from('appointments').select('id',{count:'exact',head:true}).eq('service_id',s.id);
+  if(checkError){setError(checkError.message);setBusy(false);return}
+  if(count>0){setError(lang==='fr'?'Ce service a déjà des rendez-vous. Désactivez-le pour conserver l’historique.':'This service has appointments. Disable it instead to preserve booking history.');setBusy(false);return}
+  const {error}=await supabase.from('services').delete().eq('id',s.id);
+  if(error)setError(error.code==='23503'?(lang==='fr'?'Ce service est lié à un rendez-vous. Désactivez-le plutôt.':'This service is linked to an appointment. Disable it instead.'):error.message);
+  else await reload();
+  setBusy(false);
+ }
  async function toggleService(s){setBusy(true);setError('');const {error}=await supabase.from('services').update({active:!s.active}).eq('id',s.id);
   if(error)setError(error.message);else await reload();setBusy(false);
  }
@@ -125,6 +139,6 @@ export default function Admin(){
    {serviceMessage&&<p role="alert" className="admin-error">{serviceMessage}</p>}
    <p className="admin-muted">{lang==='fr'?'Modifier la durée influence les créneaux futurs; les rendez-vous existants ne changent pas.':'Changing duration affects future available slots; existing appointments stay unchanged.'}</p>
    <div className="service-edit-actions"><button className="service-save" type="submit" disabled={busy}>{lang==='fr'?'Enregistrer':'Save changes'}</button><button type="button" disabled={busy} onClick={()=>{setEditingService(null);setServiceDraft(null);setServiceMessage('')}}>{lang==='fr'?'Annuler':'Cancel'}</button></div>
-  </form>:<><div className="service-summary"><strong>{lang==='fr'?s.name_fr:s.name_en}</strong><span>{s.duration_minutes} min · {(s.price_cents/100).toFixed(2)} $</span>{(lang==='fr'?s.description_fr:s.description_en)&&<p>{lang==='fr'?s.description_fr:s.description_en}</p>}</div><div className="service-edit-actions"><button type="button" disabled={busy} onClick={()=>beginServiceEdit(s)}>{lang==='fr'?'Modifier':'Edit'}</button><button type="button" disabled={busy} onClick={()=>toggleService(s)}>{s.active?t.enabled:t.disabled}</button></div></>}
+  </form>:<><div className="service-summary"><strong>{lang==='fr'?s.name_fr:s.name_en}</strong><span>{s.duration_minutes} min · {(s.price_cents/100).toFixed(2)} $</span>{(lang==='fr'?s.description_fr:s.description_en)&&<p>{lang==='fr'?s.description_fr:s.description_en}</p>}</div><div className="service-edit-actions"><button type="button" disabled={busy} onClick={()=>beginServiceEdit(s)}>{lang==='fr'?'Modifier':'Edit'}</button><button type="button" disabled={busy} onClick={()=>toggleService(s)}>{s.active?t.enabled:t.disabled}</button><button type="button" className="service-delete" disabled={busy} onClick={()=>deleteService(s)}>{lang==='fr'?'Supprimer':'Delete'}</button></div></>}
  </div>)}</div></section>}{tab==='appointments'&&<section className="admin-panel"><h2>{t.appointments}</h2><div className="admin-items">{appointments.length===0?t.noAppointments:appointments.map(a=><div className="admin-item" key={a.id}><div><strong>{a.customer_name}</strong> · {a.customer_email}<p>{new Date(a.starts_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto'})} · {lang==='fr'?a.services?.name_fr:a.services?.name_en} · {a.status}</p>{a.status==='pending'&&<div className="appointment-actions"><button type="button" disabled={busy} onClick={()=>decideAppointment(a.id,'approved')}>{lang==='fr'?'Approuver':'Approve'}</button><button type="button" disabled={busy} onClick={()=>decideAppointment(a.id,'declined')}>{lang==='fr'?'Refuser':'Decline'}</button></div>}</div></div>)}</div></section>}</>}{error&&<p role="alert" className="admin-error">{error}</p>}</main></div>;
 }
