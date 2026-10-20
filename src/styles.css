@@ -63,3 +63,16 @@ h1.hero-title{margin:0;align-items:center}
 .selfies-upper{font-weight:400;text-shadow:0 0 7px #ffaad6,0 0 17px #e977af,0 0 29px #cd4287}
 .selfies-script{text-shadow:0 0 6px #fff,0 0 15px #f7e3ef,0 0 26px #e4b5ce}
 @media(max-width:500px){.selfies-bow{width:110px;height:93px;bottom:-12px}}
+
+/* Selfies artwork v2: vertical flow instead of absolute overlays.
+   Same effects in both languages; bow sits ON the line, below all text. */
+.selfies-panel{min-height:0;padding:70px 18px 100px}
+.selfies-art{position:relative;isolation:isolate;width:min(100%,600px);margin:0 auto 56px;padding:45px 8px 0;box-sizing:border-box}
+.selfies-art-heart{position:absolute;z-index:-1;left:50%;top:-72px;transform:translateX(-50%) scaleX(1.06);font-size:clamp(245px,40vw,390px);line-height:1;color:#202024;pointer-events:none;font-family:Georgia,serif}
+.selfies-art-content{display:flex;align-items:center;flex-direction:column;min-width:0}
+.selfies-art-upper{display:flex;flex-direction:column;align-items:center;gap:0;font-family:'Cormorant Garamond',serif;letter-spacing:.15em;font-weight:400;line-height:.92;font-size:clamp(39px,8vw,68px);color:#ffc0de;text-shadow:0 0 7px #f9a3cf,0 0 19px #de70ab,0 0 32px #bc3a83}
+.selfies-art-upper span{display:block}
+.selfies-art-script{position:relative;z-index:1;font-family:Allura,cursive;font-size:clamp(90px,15vw,145px);line-height:1;transform:rotate(-6deg);color:#fff;text-shadow:0 0 7px white,0 0 17px #f6ddea,0 0 27px #eebad6;margin:8px 0 38px}
+.selfies-art-rule{position:relative;width:95%;height:3px;border-radius:5px;background:#ffb8d9;box-shadow:0 0 5px #ffc2de,0 0 13px #f985bb,0 0 23px #d9509a}
+.selfies-art-bow{position:absolute;z-index:2;width:118px;height:96px;left:50%;top:50%;transform:translate(-50%,-50%);overflow:visible;filter:drop-shadow(0 0 8px #f38dbc) drop-shadow(0 0 13px #d45e9b)}
+@media(max-width:500px){.selfies-panel{padding:52px 14px 80px}.selfies-art{padding-top:30px;margin-bottom:46px}.selfies-art-heart{top:-54px}.selfies-art-script{margin-bottom:35px}.selfies-art-bow{width:103px;height:84px}}
