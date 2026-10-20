@@ -20,6 +20,7 @@ export default function CustomerBooking({language}){
    if(s.error||w.error)setError(fr?'Les disponibilités ne peuvent pas être chargées pour le moment.':'Availability cannot be loaded right now.');
    setServices(s.data||[]);setWindows(w.data||[]);setLoading(false);
  }load();return()=>{live=false}},[language]);
+ const todayMontreal=useMemo(()=>{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());return ['year','month','day'].map(type=>parts.find(p=>p.type===type).value).join('-')},[]);
  const service=services.find(s=>s.id===serviceId);
  const slotsByDay=useMemo(()=>{const result={};if(!service)return result;
  for(const w of windows){const begin=mins(w.starts),end=mins(w.ends);if(!result[w.day])result[w.day]=[];
@@ -29,7 +30,7 @@ export default function CustomerBooking({language}){
  setSlotsBusy(true);
  supabase.rpc('public_booking_slots',{p_service_id:serviceId,p_day:day}).then(({data,error})=>{
   if(!live)return;
-  if(!error){setLiveSlots((data||[]).map(x=>mins(x.slot_time)));setSlotsReady(true)}
+  if(!error){setLiveSlots([...new Set((data||[]).map(x=>mins(x.slot_time)))].sort((a,b)=>a-b));setSlotsReady(true)}
   else setError(fr?'Les heures exactes ne sont pas encore disponibles.':'Exact appointment times are not available yet.');
  }).finally(()=>{if(live)setSlotsBusy(false)});
  return()=>{live=false};
@@ -38,7 +39,7 @@ export default function CustomerBooking({language}){
  function changeMonth(direction){const [y,m]=month.split('-').map(Number);const next=new Date(y,m-1+direction,1);setMonth(dateKey(next).slice(0,7))}
  const monthDate=dateObj(month+'-01');
  function pickService(id){setError('');setServiceId(id);setDay('');setTime(null)}
- function pickDay(d){if(!slotsByDay[d]?.length)return;setError('');setDay(d);setTime(null)}
+ function pickDay(d){if(d<todayMontreal||!slotsByDay[d]?.length)return;setError('');setDay(d);setTime(null)}
  async function submitRequest(e){
  e.preventDefault();if(!supabase||!service||!day||time===null||!agreed||sending)return;
  setSending(true);setError('');setSuccess('');
@@ -55,8 +56,8 @@ export default function CustomerBooking({language}){
   <div className="booking-services">{services.map(s=><button type="button" className={'booking-service'+(serviceId===s.id?' chosen':'')} key={s.id} onClick={()=>pickService(s.id)}><strong>{fr?s.name_fr:s.name_en}</strong><span>{s.duration_minutes} min · {(s.price_cents/100).toLocaleString(fr?'fr-CA':'en-CA',{style:'currency',currency:'CAD'})}</span></button>)}</div>
   {service&&<><h3>{fr?'Choisissez une date':'Choose a date'}</h3>
   <div className="booking-month"><button type="button" onClick={()=>changeMonth(-1)} aria-label={fr?'Mois précédent':'Previous month'}>‹</button><strong>{monthDate.toLocaleDateString(fr?'fr-CA':'en-CA',{month:'long',year:'numeric'})}</strong><button type="button" onClick={()=>changeMonth(1)} aria-label={fr?'Mois suivant':'Next month'}>›</button></div>
-  <div className="booking-days">{(fr?['L','M','M','J','V','S','D']:['M','T','W','T','F','S','S']).map((d,i)=><span className="booking-weekday" key={i}>{d}</span>)}{cells.map((d,i)=>d?<button type="button" key={d} className={day===d?'selected':''} disabled={!slotsByDay[d]?.length} onClick={()=>pickDay(d)} aria-label={d}>{Number(d.slice(-2))}</button>:<span key={'blank'+i}/>)}</div>
-  {day&&<><h3>{fr?'Heures possibles':'Possible times'}</h3>{slotsBusy&&<p className="booking-notice">{fr?'Vérification des horaires…':'Checking actual availability…'}</p>}<div className="booking-time-grid">{(slotsReady?liveSlots:[]).map(t=><button type="button" key={t} className={time===t?'selected':''} onClick={()=>setTime(t)}>{clock(t,language)}</button>)}</div></>}
+  <div className="booking-days">{(fr?['L','M','M','J','V','S','D']:['M','T','W','T','F','S','S']).map((d,i)=><span className="booking-weekday" key={i}>{d}</span>)}{cells.map((d,i)=>d?<button type="button" key={d} className={day===d?'selected':''} disabled={d<todayMontreal||!slotsByDay[d]?.length} onClick={()=>pickDay(d)} aria-label={d}>{Number(d.slice(-2))}</button>:<span key={'blank'+i}/>)}</div>
+  {day&&<><h3>{fr?'Heures possibles':'Possible times'}</h3><p className="booking-date-label">{prettyDate} · {service.duration_minutes} min</p>{slotsBusy&&<p className="booking-notice">{fr?'Vérification des horaires…':'Checking actual availability…'}</p>}{slotsReady&&liveSlots.length===0&&<p className="booking-notice" role="status">{fr?'Aucune heure disponible pour cette date et cette coiffure. Choisissez une autre date.':'No available times for this date and hairstyle. Please choose another date.'}</p>}<div className="booking-time-grid">{(slotsReady?liveSlots:[]).map(t=><button type="button" key={t} className={time===t?'selected':''} onClick={()=>setTime(t)}>{clock(t,language)}</button>)}</div></>}
   {day&&time!==null&&<div className="booking-summary"><strong>{fr?'Votre sélection':'Your selection'}</strong><p>{fr?service.name_fr:service.name_en}</p><p>{prettyDate} · {clock(time,language)}</p><form className="booking-details" onSubmit={submitRequest}><label>{fr?'Nom complet':'Full name'}<input required maxLength={100} minLength={2} autoComplete="name" value={clientName} onChange={e=>setClientName(e.target.value)}/></label><label>{fr?'Courriel':'Email'}<input type="email" required maxLength={254} autoComplete="email" value={clientEmail} onChange={e=>setClientEmail(e.target.value)}/></label><label>{fr?'Téléphone (facultatif)':'Phone (optional)'}<input type="tel" maxLength={35} autoComplete="tel" value={clientPhone} onChange={e=>setClientPhone(e.target.value)}/></label><label className="booking-agreement"><input type="checkbox" required checked={agreed} onChange={e=>setAgreed(e.target.checked)}/><span>{fr?"J'ai lu et j'accepte les politiques de réservation et d'annulation.":"I've read and agree to the booking and cancellation policies."}</span></label><p className="booking-notice">{fr?"Votre demande sera en attente d'approbation. Aucun courriel automatique n'est encore envoyé.":"Your request will be pending approval. Automatic emails are not active yet."}</p><button type="submit" disabled={sending||!agreed}>{sending?(fr?'Envoi…':'Sending…'):(fr?'Demander le rendez-vous':'Request appointment')}</button></form></div>}
   {success&&<div className="booking-summary" role="status"><strong>{fr?'Demande reçue':'Request received'}</strong><p>{fr?"Votre demande est enregistrée et en attente d'approbation par Lynna.":"Your appointment request is saved and awaiting Lynna’s approval."}</p><p className="booking-notice">{fr?"Notez votre référence. Les notifications automatiques ne sont pas encore activées.":"Save your reference. Automatic notifications aren't enabled yet."}</p><code>{success}</code></div>}
   </>}
