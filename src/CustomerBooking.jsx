@@ -14,12 +14,26 @@ export default function CustomerBooking({language}){
  const [liveSlots,setLiveSlots]=useState([]),[slotsBusy,setSlotsBusy]=useState(false),[slotsReady,setSlotsReady]=useState(false);
  const [clientName,setClientName]=useState(''),[clientEmail,setClientEmail]=useState(''),[clientPhone,setClientPhone]=useState(''),[agreed,setAgreed]=useState(false),[sending,setSending]=useState(false),[success,setSuccess]=useState('');
  const [month,setMonth]=useState(()=>{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit'}).formatToParts(new Date());return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value});
- useEffect(()=>{let live=true;async function load(){if(!supabase){if(live){setError(fr?'La réservation est temporairement indisponible.':'Booking is temporarily unavailable.');setLoading(false)}return}
-   const [s,w]=await Promise.all([supabase.from('services').select('id,name_en,name_fr,duration_minutes,price_cents').eq('active',true).order('sort_order'),supabase.rpc('public_booking_windows')]);
-   if(!live)return;
-   if(s.error||w.error)setError(fr?'Les disponibilités ne peuvent pas être chargées pour le moment.':'Availability cannot be loaded right now.');
-   setServices(s.data||[]);setWindows(w.data||[]);setLoading(false);
- }load();return()=>{live=false}},[language]);
+ useEffect(()=>{
+  let live=true,requesting=false;
+  async function load(initial=false){
+   if(!supabase){if(live){setError(fr?'La réservation est temporairement indisponible.':'Booking is temporarily unavailable.');setLoading(false)}return}
+   if(requesting)return;
+   requesting=true;
+   try{
+    const [s,w]=await Promise.all([supabase.from('services').select('id,name_en,name_fr,duration_minutes,price_cents').eq('active',true).order('sort_order'),supabase.rpc('public_booking_windows')]);
+    if(!live)return;
+    if(s.error||w.error){if(initial)setError(fr?'Les disponibilités ne peuvent pas être chargées pour le moment.':'Availability cannot be loaded right now.')}
+    else{setServices(s.data||[]);setWindows(w.data||[]);setError('')}
+   }finally{requesting=false;if(live)setLoading(false)}
+  }
+  function refreshOnReturn(){if(document.visibilityState==='visible')load()}
+  load(true);
+  window.addEventListener('focus',refreshOnReturn);
+  document.addEventListener('visibilitychange',refreshOnReturn);
+  const timer=setInterval(()=>{if(document.visibilityState==='visible')load()},15000);
+  return()=>{live=false;clearInterval(timer);window.removeEventListener('focus',refreshOnReturn);document.removeEventListener('visibilitychange',refreshOnReturn)};
+ },[language]);
  const todayMontreal=useMemo(()=>{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());return ['year','month','day'].map(type=>parts.find(p=>p.type===type).value).join('-')},[]);
  const service=services.find(s=>s.id===serviceId);
  const slotsByDay=useMemo(()=>{const result={};if(!service)return result;
