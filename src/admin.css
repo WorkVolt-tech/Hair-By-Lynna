@@ -94,3 +94,66 @@
 @media(max-width:370px){
  .slot-edit-actions{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Safari native date/time form-control containment.
+   The border belongs to the wrapper, not the iOS control, so its intrinsic
+   picker width cannot draw beyond the admin card on narrow phones. */
+.admin-page .datetime-control{
+  display:block;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  min-inline-size:0;
+  box-sizing:border-box;
+  overflow:hidden;
+  border:1px solid #81576a;
+  border-radius:5px;
+  background:#090609;
+}
+.admin-page .datetime-control:focus-within{
+  border-color:#eaa2c4;
+  outline:2px solid #eaa2c466;
+  outline-offset:1px;
+}
+.admin-page .datetime-control input[type="date"],
+.admin-page .datetime-control input[type="time"]{
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  min-inline-size:0;
+  padding:12px;
+  margin:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:#fff;
+  font-size:16px;
+  line-height:1.4;
+  text-align:left;
+}
+.admin-page .datetime-control input:focus{outline:none}
+@media(max-width:700px){
+  .admin-page .admin-form,
+  .admin-page .slot-edit-times,
+  .admin-page .slot-edit-fields,
+  .admin-page .bulk-editor,
+  .admin-page .slot-edit-row{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    box-sizing:border-box;
+  }
+  .admin-page .admin-form>label,
+  .admin-page .slot-edit-times>label{
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    box-sizing:border-box;
+    overflow:hidden;
+  }
+  .admin-page .datetime-control{max-inline-size:100%}
+}
