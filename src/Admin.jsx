@@ -97,9 +97,12 @@ export default function Admin(){
  async function saveService(e){e.preventDefault();if(!editingService||!serviceDraft||busy)return;
   const draft=serviceDraft;
   const duration=Number(draft.duration_minutes),amount=Number(draft.price);
-  if(!draft.name_en.trim()||!draft.name_fr.trim()||!Number.isInteger(duration)||duration<15||duration>960||!Number.isFinite(amount)||amount<0||!/^[0-9]+(?:\\.[0-9]{1,2})?$/.test(draft.price)){
-   setServiceMessage(lang==='fr'?'Vérifiez les noms, la durée (15 à 960 minutes) et le prix.':'Check names, duration (15–960 minutes), and price.');return;
-  }
+  const invalidNames=!draft.name_en.trim()||!draft.name_fr.trim();
+  const invalidDuration=!Number.isInteger(duration)||duration<15||duration>960;
+  const invalidPrice=!Number.isFinite(amount)||amount<0||!(/^[0-9]+([.][0-9]{1,2})?$/).test(draft.price.trim());
+  if(invalidNames){setServiceMessage(lang==='fr'?'Le nom du service est requis en anglais et en français.':'Enter the service name in both English and French.');return}
+  if(invalidDuration){setServiceMessage(lang==='fr'?'La durée doit être entre 15 et 960 minutes.':'Duration must be between 15 and 960 minutes.');return}
+  if(invalidPrice){setServiceMessage(lang==='fr'?'Entrez un prix valide avec un maximum de deux décimales.':'Enter a valid price with up to two decimal places.');return}
   setBusy(true);setError('');setServiceMessage('');
   const {error}=await supabase.from('services').update({name_en:draft.name_en.trim(),name_fr:draft.name_fr.trim(),description_en:draft.description_en.trim(),description_fr:draft.description_fr.trim(),duration_minutes:duration,price_cents:Math.round(amount*100)}).eq('id',editingService);
   if(error){setServiceMessage(error.message)}else{await reload();setEditingService(null);setServiceDraft(null)}
