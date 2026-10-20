@@ -167,3 +167,27 @@
 .appointment-actions button{min-height:42px;padding:10px 16px;cursor:pointer}
 .appointment-actions button:first-child{background:#d58bac;color:#180c14;border-color:#d58bac;font-weight:700}
 @media(max-width:600px){.appointment-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.appointment-actions button{min-width:0;width:100%}}
+
+/* Editable services: iPhone Safari friendly full-width fields and actions */
+.service-admin-item{align-items:stretch}
+.service-summary{display:flex;flex:1 1 220px;min-width:0;flex-direction:column;gap:6px;overflow-wrap:anywhere}
+.service-summary strong{color:#ffe4f0;font-size:15px}
+.service-summary span{color:#d7b9c8}
+.service-summary p{margin:4px 0 0;white-space:pre-wrap}
+.service-edit-form{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+.service-edit-form h3{font-family:'Cormorant Garamond',serif;color:#f1b4d2;font-size:26px;font-weight:400;margin:3px 0 18px}
+.service-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:100%;min-width:0}
+.service-edit-grid label{min-width:0;width:100%}
+.service-edit-grid input,.service-edit-grid textarea{width:100%;max-width:100%;min-width:0;box-sizing:border-box;background:#090609;color:#fff;border:1px solid #81576a;border-radius:5px;padding:12px;font:inherit;font-size:16px}
+.service-edit-grid textarea{resize:vertical}
+.service-edit-actions{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+.service-edit-actions button{min-height:43px}
+.service-edit-actions .service-save{background:#d58bac;color:#180a11;border-color:#d58bac;font-weight:700}
+.service-edit-form>.service-edit-actions{margin-top:14px}
+@media(max-width:700px){
+ .service-edit-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+ .service-edit-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:8px}
+ .service-edit-actions button{width:100%;min-width:0;white-space:normal}
+ .service-summary{flex:1 1 100%}
+ .service-edit-form{overflow-wrap:anywhere}
+}
