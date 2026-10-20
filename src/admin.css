@@ -157,3 +157,7 @@
   }
   .admin-page .datetime-control{max-inline-size:100%}
 }
+/* Neon logo in the admin bar */
+.admin-logo{display:flex;align-items:center;line-height:0}
+.admin-logo img{height:48px;width:auto;display:block}
+@media(max-width:650px){.admin-logo img{height:40px}}
