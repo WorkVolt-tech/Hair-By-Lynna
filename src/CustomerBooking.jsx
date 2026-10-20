@@ -32,15 +32,18 @@ export default function CustomerBooking({language}){
   load(true);
   window.addEventListener('focus',refreshOnReturn);
   document.addEventListener('visibilitychange',refreshOnReturn);
-  const timer=setInterval(()=>{if(document.visibilityState==='visible')load()},15000);
+  const timer=setInterval(()=>{if(document.visibilityState==='visible')load()},5000);
   return()=>{live=false;clearInterval(timer);window.removeEventListener('focus',refreshOnReturn);document.removeEventListener('visibilitychange',refreshOnReturn)};
  },[language]);
+ const [clockNow,setClockNow]=useState(()=>Date.now());
+ useEffect(()=>{const id=setInterval(()=>setClockNow(Date.now()),30000);return()=>clearInterval(id)},[]);
  const todayMontreal=useMemo(()=>{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());return ['year','month','day'].map(type=>parts.find(p=>p.type===type).value).join('-')},[]);
+ const minBookingTime=clockNow+24*60*60*1000;
  const service=services.find(s=>s.id===serviceId);
  const slotsByDay=useMemo(()=>{const result={};if(!service)return result;
  for(const w of windows){const begin=mins(w.starts),end=mins(w.ends);if(!result[w.day])result[w.day]=[];
-   for(let t=Math.ceil(begin/30)*30;t+service.duration_minutes<=end;t+=30){if(!result[w.day].includes(t))result[w.day].push(t)}
- }return result},[service,windows]);
+   for(let t=Math.ceil(begin/30)*30;t+service.duration_minutes<=end;t+=30){if(!result[w.day].includes(t) && new Date(w.day+'T'+pad(Math.floor(t/60))+':'+pad(t%60)+':00').getTime()>=minBookingTime)result[w.day].push(t)}
+ }return result},[service,windows,minBookingTime]);
  useEffect(()=>{
   let live=true,loadingSlots=false;
   setLiveSlots([]);setSlotsReady(false);
@@ -64,11 +67,12 @@ export default function CustomerBooking({language}){
   refreshSlots();
   window.addEventListener('focus',onReturn);
   document.addEventListener('visibilitychange',onReturn);
-  const timer=window.setInterval(()=>{if(document.visibilityState==='visible')refreshSlots()},10000);
+  const timer=window.setInterval(()=>{if(document.visibilityState==='visible')refreshSlots()},5000);
   return()=>{live=false;clearInterval(timer);window.removeEventListener('focus',onReturn);document.removeEventListener('visibilitychange',onReturn)};
  },[serviceId,day,language]);
  const cells=useMemo(()=>monthCells(month),[month]);
  function changeMonth(direction){const [y,m]=month.split('-').map(Number);const next=new Date(y,m-1+direction,1);setMonth(dateKey(next).slice(0,7))}
+ const todayHint=fr?'Les réservations doivent être faites au moins 24 heures à l’avance. Une date peut apparaître indisponible si aucun créneau ne correspond à la durée du service.':'Bookings must be made at least 24 hours ahead. A date may also be unavailable if the service cannot fit into an open time window.';
  const monthDate=dateObj(month+'-01');
  function pickService(id){setError('');setServiceId(id);setDay('');setTime(null)}
  function pickDay(d){if(d<todayMontreal||!slotsByDay[d]?.length)return;setError('');setDay(d);setTime(null)}
@@ -86,7 +90,7 @@ export default function CustomerBooking({language}){
   {loading?<p>{fr?'Chargement…':'Loading…'}</p>:error?<p role="status" className="booking-notice">{error}</p>:null}
   {!loading&&!services.length&&<p className="booking-notice">{fr?"Les services et les horaires seront affichés ici dès qu'ils seront publiés.":"Services and available times will appear here when Lynna publishes them."}</p>}
   <label className="booking-service-picker">{fr?'Hairstyle / Service':'Hairstyle / Service'}<select value={serviceId} onChange={e=>pickService(e.target.value)}><option value="">{fr?'— Choisissez une coiffure —':'— Select a hairstyle —'}</option>{services.map(s=><option key={s.id} value={s.id}>{fr?s.name_fr:s.name_en} · {s.duration_minutes} min · {(s.price_cents/100).toFixed(2)} $</option>)}</select></label>{services.length===1&&<p className="booking-notice">{fr?"Une seule coiffure est disponible actuellement. Lynna peut activer les autres dans Admin → Services.":"Only one hairstyle is currently available for booking. Lynna can enable other styles in Admin → Services."}</p>}{service&&<div className="booking-service-selection"><strong>{fr?service.name_fr:service.name_en}</strong><span>{service.duration_minutes} min · {(service.price_cents/100).toLocaleString(fr?'fr-CA':'en-CA',{style:'currency',currency:'CAD'})}</span></div>}
-  {service&&<><h3>{fr?'Choisissez une date':'Choose a date'}</h3>
+  {service&&<><h3>{fr?'Choisissez une date':'Choose a date'}</h3><p className="booking-notice">{todayHint}</p>
   <div className="booking-month"><button type="button" onClick={()=>changeMonth(-1)} aria-label={fr?'Mois précédent':'Previous month'}>‹</button><strong>{monthDate.toLocaleDateString(fr?'fr-CA':'en-CA',{month:'long',year:'numeric'})}</strong><button type="button" onClick={()=>changeMonth(1)} aria-label={fr?'Mois suivant':'Next month'}>›</button></div>
   <div className="booking-days">{(fr?['L','M','M','J','V','S','D']:['M','T','W','T','F','S','S']).map((d,i)=><span className="booking-weekday" key={i}>{d}</span>)}{cells.map((d,i)=>d?<button type="button" key={d} className={day===d?'selected':''} disabled={d<todayMontreal||!slotsByDay[d]?.length} onClick={()=>pickDay(d)} aria-label={d}>{Number(d.slice(-2))}</button>:<span key={'blank'+i}/>)}</div>
   {day&&<><h3>{fr?'Heures possibles':'Possible times'}</h3><p className="booking-date-label">{prettyDate} · {service.duration_minutes} min</p>{slotsBusy&&<p className="booking-notice">{fr?'Vérification des horaires…':'Checking actual availability…'}</p>}{slotsReady&&liveSlots.length===0&&<p className="booking-notice" role="status">{fr?'Aucune heure disponible pour cette date et cette coiffure. Choisissez une autre date.':'No available times for this date and hairstyle. Please choose another date.'}</p>}<div className="booking-time-grid">{(slotsReady?liveSlots:[]).map(t=><button type="button" key={t} className={time===t?'selected':''} onClick={()=>setTime(t)}>{clock(t,language)}</button>)}</div></>}
