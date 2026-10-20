@@ -161,3 +161,9 @@
 .admin-logo{display:flex;align-items:center;line-height:0}
 .admin-logo img{height:48px;width:auto;display:block}
 @media(max-width:650px){.admin-logo img{height:40px}}
+
+/* Pending booking review actions */
+.appointment-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+.appointment-actions button{min-height:42px;padding:10px 16px;cursor:pointer}
+.appointment-actions button:first-child{background:#d58bac;color:#180c14;border-color:#d58bac;font-weight:700}
+@media(max-width:600px){.appointment-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.appointment-actions button{min-width:0;width:100%}}
