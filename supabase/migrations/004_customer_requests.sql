@@ -42,7 +42,7 @@ begin
     select 1 from public.availability a
     where a.date=p_day and a.enabled
       and p_time>=a.start_time
-      and (p_time + make_interval(mins=>v_duration)) <= a.end_time
+      and (p_day + p_time + make_interval(mins=>v_duration)) <= (p_day + a.end_time)
   ) then raise exception 'TIME_UNAVAILABLE' using errcode='P0001'; end if;
   -- Basic per-email/global request limits. Captcha and stronger anti-abuse are still advised.
   if (select count(*) from public.appointments a where lower(a.customer_email)=v_email
