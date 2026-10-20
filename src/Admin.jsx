@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from './lib/supabase.js';
 import { CalendarDays, ClipboardList, Scissors, LockKeyhole, LogOut } from 'lucide-react';
 import './admin.css';
@@ -20,6 +20,8 @@ export default function Admin(){
  const [day,setDay]=useState(initialDate()),[start,setStart]=useState('09:00'),[end,setEnd]=useState('17:00');
  const [nameEn,setNameEn]=useState(''),[nameFr,setNameFr]=useState(''),[minutes,setMinutes]=useState('180'),[price,setPrice]=useState('0');
  const [editingAppointment,setEditingAppointment]=useState(null),[appointmentDraft,setAppointmentDraft]=useState(null),[appointmentError,setAppointmentError]=useState('');
+ const draggingService=useRef(null);
+ const [dragOverService,setDragOverService]=useState(null);
  const [editingService,setEditingService]=useState(null),[serviceDraft,setServiceDraft]=useState(null),[serviceMessage,setServiceMessage]=useState('');
  useEffect(()=>{document.documentElement.lang=lang;try{localStorage.setItem('lynna-language',lang)}catch{}},[lang]);
  useEffect(()=>{if(!supabase){setLoading(false);return}let live=true;
@@ -204,18 +206,11 @@ export default function Admin(){
   else await reload();
   setBusy(false);
  }
- async function moveService(serviceId,direction){
-  if(busy)return;
-  const ordered=[...services].sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)||String(a.created_at||'').localeCompare(String(b.created_at||''))||a.id.localeCompare(b.id));
-  const idx=ordered.findIndex(s=>s.id===serviceId),other=idx+direction;
-  if(idx<0||other<0||other>=ordered.length)return;
-  // Persist a complete unambiguous order even when older services all have sort_order=0.
-  const moved=[...ordered];
-  [moved[idx],moved[other]]=[moved[other],moved[idx]];
+ const orderedServices=()=>[...services].sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)||String(a.created_at||'').localeCompare(String(b.created_at||''))||a.id.localeCompare(b.id));
+ async function saveServiceOrder(moved){
   setBusy(true);setError('');
+  setServices(moved.map((s,i)=>({...s,sort_order:(i+1)*10})));
   try{
-   // Updating one row at a time is supported by current RLS; use unique
-   // sequential positions, then reload from the database when done.
    for(let i=0;i<moved.length;i++){
     const {error}=await supabase.from('services').update({sort_order:(i+1)*10}).eq('id',moved[i].id);
     if(error)throw error;
@@ -223,10 +218,41 @@ export default function Admin(){
   }catch(e){setError(e.message)}
   finally{await reload();setBusy(false)}
  }
+ async function moveService(serviceId,direction){
+  if(busy)return;
+  const moved=orderedServices(),idx=moved.findIndex(s=>s.id===serviceId),other=idx+direction;
+  if(idx<0||other<0||other>=moved.length)return;
+  [moved[idx],moved[other]]=[moved[other],moved[idx]];
+  await saveServiceOrder(moved);
+ }
+ function beginServiceDrag(e,id){
+  if(busy||editingService!==null)return;
+  if(e.pointerType==='mouse'&&e.button!==0)return;
+  draggingService.current={id,pointerId:e.pointerId,startY:e.clientY};
+  setDragOverService(id);
+  e.currentTarget.setPointerCapture(e.pointerId);
+ }
+ function trackServiceDrag(e){
+  if(!draggingService.current||draggingService.current.pointerId!==e.pointerId)return;
+  const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-service-id]')?.dataset.serviceId;
+  if(target)setDragOverService(target);
+ }
+ async function finishServiceDrag(e){
+  const drag=draggingService.current;
+  if(!drag||drag.pointerId!==e.pointerId)return;
+  const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-service-id]')?.dataset.serviceId||dragOverService;
+  draggingService.current=null;setDragOverService(null);
+  if(!target||drag.id===target||Math.abs(e.clientY-drag.startY)<8)return;
+  const moved=orderedServices(),from=moved.findIndex(s=>s.id===drag.id),to=moved.findIndex(s=>s.id===target);
+  if(from<0||to<0)return;
+  moved.splice(to,0,...moved.splice(from,1));
+  await saveServiceOrder(moved);
+ }
+ function cancelServiceDrag(){draggingService.current=null;setDragOverService(null)}
  async function toggleService(s){setBusy(true);setError('');const {error}=await supabase.from('services').update({active:!s.active}).eq('id',s.id);
   if(error)setError(error.message);else await reload();setBusy(false);
  }
- return <div className="admin-page"><header className="admin-bar"><a href="/" className="admin-logo"><img src="/images/hair-by-lynna-logo.webp" alt="Hair by Lynna" width="140" height="48"/></a><div className="admin-actions"><button type="button" onClick={()=>setLang(lang==='fr'?'en':'fr')}>{lang==='fr'?'EN':'FR'}</button><a href="/">{t.back}</a>{session&&<button type="button" onClick={()=>supabase.auth.signOut()}><LogOut size={15}/>{t.signOut}</button>}</div></header><main className="admin-main"><h1>{t.title}</h1>{!supabase?<div className="admin-panel">{t.missing}</div>:loading?<p>{t.loading}</p>:!session?<form className="admin-panel admin-login" onSubmit={login}><LockKeyhole size={27} color="#eeb1d0"/><h2>{t.signIn}</h2><label>{t.email}<input type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)}/></label><label>{t.password}<input type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></label><button disabled={busy} type="submit">{t.enter}</button></form>:!role?<div className="admin-panel">{t.noAccess}</div>:<><p className="admin-muted">{session.user.email} · {role==='owner'?'Owner':'Tester'}</p><div className="admin-tabs">{[['availability',CalendarDays],['appointments',ClipboardList],['services',Scissors]].map(([item,Icon])=><button type="button" className={tab===item?'current':''} onClick={()=>setTab(item)} key={item}><Icon size={18}/>{t[item]}</button>)}</div><p className="admin-muted">{t.review}</p>{tab==='availability'&&<section className="admin-panel"><h2>{t.availability}</h2><p className="admin-muted">{t.note}</p><div className="admin-danger-zone"><strong>{lang==='fr'?'Réinitialiser toute la planification':'Reset all scheduling'}</strong><p className="admin-muted">{lang==='fr'?'Supprime définitivement TOUTES les disponibilités et TOUS les rendez-vous.':'Permanently deletes ALL availability AND ALL appointments.'}</p><button type="button" className="admin-danger-button" disabled={busy} onClick={clearAllSchedules}>{lang==='fr'?'Tout effacer':'Clear all schedules and appointments'}</button></div><AvailabilityCalendar lang={lang} day={day} setDay={setDay} availability={availability} onMove={moveSlot} busy={busy}/><AvailabilityManager lang={lang} availability={availability} day={day} setDay={setDay} start={start} setStart={setStart} end={end} setEnd={setEnd} busy={busy} onAdd={addSlot} onDelete={deleteSlot} onUpdate={updateSlot} onBulk={bulkSave}/> </section>}{tab==='services'&&<section className="admin-panel"><h2>{t.services}</h2><form className="admin-form" onSubmit={addService}><label>{t.nameEn}<input required value={nameEn} onChange={e=>setNameEn(e.target.value)}/></label><label>{t.nameFr}<input required value={nameFr} onChange={e=>setNameFr(e.target.value)}/></label><label>{t.minutes}<input type="number" min="15" max="960" required value={minutes} onChange={e=>setMinutes(e.target.value)}/></label><label>{t.price}<input type="number" min="0" step=".01" required value={price} onChange={e=>setPrice(e.target.value)}/></label><button disabled={busy} type="submit">{t.addService}</button></form><div className="admin-items">{services.length===0?t.noServices:services.map(s=><div className="admin-item service-admin-item" key={s.id}>
+ return <div className="admin-page"><header className="admin-bar"><a href="/" className="admin-logo"><img src="/images/hair-by-lynna-logo.webp" alt="Hair by Lynna" width="140" height="48"/></a><div className="admin-actions"><button type="button" onClick={()=>setLang(lang==='fr'?'en':'fr')}>{lang==='fr'?'EN':'FR'}</button><a href="/">{t.back}</a>{session&&<button type="button" onClick={()=>supabase.auth.signOut()}><LogOut size={15}/>{t.signOut}</button>}</div></header><main className="admin-main"><h1>{t.title}</h1>{!supabase?<div className="admin-panel">{t.missing}</div>:loading?<p>{t.loading}</p>:!session?<form className="admin-panel admin-login" onSubmit={login}><LockKeyhole size={27} color="#eeb1d0"/><h2>{t.signIn}</h2><label>{t.email}<input type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)}/></label><label>{t.password}<input type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></label><button disabled={busy} type="submit">{t.enter}</button></form>:!role?<div className="admin-panel">{t.noAccess}</div>:<><p className="admin-muted">{session.user.email} · {role==='owner'?'Owner':'Tester'}</p><div className="admin-tabs">{[['availability',CalendarDays],['appointments',ClipboardList],['services',Scissors]].map(([item,Icon])=><button type="button" className={tab===item?'current':''} onClick={()=>setTab(item)} key={item}><Icon size={18}/>{t[item]}</button>)}</div><p className="admin-muted">{t.review}</p>{tab==='availability'&&<section className="admin-panel"><h2>{t.availability}</h2><p className="admin-muted">{t.note}</p><div className="admin-danger-zone"><strong>{lang==='fr'?'Réinitialiser toute la planification':'Reset all scheduling'}</strong><p className="admin-muted">{lang==='fr'?'Supprime définitivement TOUTES les disponibilités et TOUS les rendez-vous.':'Permanently deletes ALL availability AND ALL appointments.'}</p><button type="button" className="admin-danger-button" disabled={busy} onClick={clearAllSchedules}>{lang==='fr'?'Tout effacer':'Clear all schedules and appointments'}</button></div><AvailabilityCalendar lang={lang} day={day} setDay={setDay} availability={availability} onMove={moveSlot} busy={busy}/><AvailabilityManager lang={lang} availability={availability} day={day} setDay={setDay} start={start} setStart={setStart} end={end} setEnd={setEnd} busy={busy} onAdd={addSlot} onDelete={deleteSlot} onUpdate={updateSlot} onBulk={bulkSave}/> </section>}{tab==='services'&&<section className="admin-panel"><h2>{t.services}</h2><form className="admin-form" onSubmit={addService}><label>{t.nameEn}<input required value={nameEn} onChange={e=>setNameEn(e.target.value)}/></label><label>{t.nameFr}<input required value={nameFr} onChange={e=>setNameFr(e.target.value)}/></label><label>{t.minutes}<input type="number" min="15" max="960" required value={minutes} onChange={e=>setMinutes(e.target.value)}/></label><label>{t.price}<input type="number" min="0" step=".01" required value={price} onChange={e=>setPrice(e.target.value)}/></label><button disabled={busy} type="submit">{t.addService}</button></form><div className="admin-items">{services.length===0?t.noServices:services.map(s=><div className={"admin-item service-admin-item"+(dragOverService===s.id?" service-drop-target":"")} data-service-id={s.id} key={s.id}>
  {editingService===s.id&&serviceDraft?<form className="service-edit-form" onSubmit={saveService}>
    <h3>{lang==='fr'?'Modifier le service':'Edit service'}</h3>
    <div className="service-edit-grid">
@@ -240,6 +266,6 @@ export default function Admin(){
    {serviceMessage&&<p role="alert" className="admin-error">{serviceMessage}</p>}
    <p className="admin-muted">{lang==='fr'?'Modifier la durée influence les créneaux futurs; les rendez-vous existants ne changent pas.':'Changing duration affects future available slots; existing appointments stay unchanged.'}</p>
    <div className="service-edit-actions"><button className="service-save" type="submit" disabled={busy}>{lang==='fr'?'Enregistrer':'Save changes'}</button><button type="button" disabled={busy} onClick={()=>{setEditingService(null);setServiceDraft(null);setServiceMessage('')}}>{lang==='fr'?'Annuler':'Cancel'}</button></div>
-  </form>:<><div className="service-summary"><strong>{lang==='fr'?s.name_fr:s.name_en}</strong><span>{s.duration_minutes} min · {(s.price_cents/100).toFixed(2)} $</span>{(lang==='fr'?s.description_fr:s.description_en)&&<p>{lang==='fr'?s.description_fr:s.description_en}</p>}</div><div className="service-edit-actions"><button type="button" className="service-move" disabled={busy||services[0]?.id===s.id} onClick={()=>moveService(s.id,-1)} aria-label={lang==='fr'?'Monter le service':'Move service up'} title={lang==='fr'?'Monter':'Move up'}>↑ {lang==='fr'?'Monter':'Up'}</button><button type="button" className="service-move" disabled={busy||services[services.length-1]?.id===s.id} onClick={()=>moveService(s.id,1)} aria-label={lang==='fr'?'Descendre le service':'Move service down'} title={lang==='fr'?'Descendre':'Move down'}>↓ {lang==='fr'?'Descendre':'Down'}</button><button type="button" disabled={busy} onClick={()=>beginServiceEdit(s)}>{lang==='fr'?'Modifier':'Edit'}</button><button type="button" disabled={busy} onClick={()=>toggleService(s)}>{s.active?t.enabled:t.disabled}</button><button type="button" className="service-delete" disabled={busy} onClick={()=>deleteService(s)}>{lang==='fr'?'Supprimer':'Delete'}</button></div></>}
+  </form>:<><div className="service-drag-row"><button type="button" className="service-drag-handle" disabled={busy} aria-label={lang==='fr'?'Glisser pour réordonner':'Drag to reorder'} title={lang==='fr'?'Maintenir et glisser':'Hold and drag'} onPointerDown={e=>beginServiceDrag(e,s.id)} onPointerMove={trackServiceDrag} onPointerUp={finishServiceDrag} onPointerCancel={cancelServiceDrag}>⠿</button><div className="service-summary"><strong>{lang==='fr'?s.name_fr:s.name_en}</strong><span>{s.duration_minutes} min · {(s.price_cents/100).toFixed(2)} $</span>{(lang==='fr'?s.description_fr:s.description_en)&&<p>{lang==='fr'?s.description_fr:s.description_en}</p>}</div></div><div className="service-edit-actions"><button type="button" className="service-move" disabled={busy||services[0]?.id===s.id} onClick={()=>moveService(s.id,-1)} aria-label={lang==='fr'?'Monter le service':'Move service up'} title={lang==='fr'?'Monter':'Move up'}>↑ {lang==='fr'?'Monter':'Up'}</button><button type="button" className="service-move" disabled={busy||services[services.length-1]?.id===s.id} onClick={()=>moveService(s.id,1)} aria-label={lang==='fr'?'Descendre le service':'Move service down'} title={lang==='fr'?'Descendre':'Move down'}>↓ {lang==='fr'?'Descendre':'Down'}</button><button type="button" disabled={busy} onClick={()=>beginServiceEdit(s)}>{lang==='fr'?'Modifier':'Edit'}</button><button type="button" disabled={busy} onClick={()=>toggleService(s)}>{s.active?t.enabled:t.disabled}</button><button type="button" className="service-delete" disabled={busy} onClick={()=>deleteService(s)}>{lang==='fr'?'Supprimer':'Delete'}</button></div></>}
  </div>)}</div></section>}{tab==='appointments'&&<section className="admin-panel"><h2>{t.appointments}</h2><div className="admin-items">{appointments.length===0?t.noAppointments:appointments.map(a=><div className="admin-item" key={a.id}><div><strong>{a.customer_name}</strong> · {a.customer_email}<p>{new Date(a.starts_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto'})} · {lang==='fr'?a.services?.name_fr:a.services?.name_en} · {a.status}</p><p className="appointment-reference">{lang==='fr'?'Référence':'Reference'} : <strong>{bookingReference(a.id,a.starts_at)}</strong></p>{a.status==='pending'&&<div className="appointment-actions"><button type="button" disabled={busy} onClick={()=>decideAppointment(a.id,'approved')}>{lang==='fr'?'Approuver':'Approve'}</button><button type="button" disabled={busy} onClick={()=>decideAppointment(a.id,'declined')}>{lang==='fr'?'Refuser':'Decline'}</button></div>}{['pending','approved'].includes(a.status)&&<div className="appointment-actions"><button type="button" className="appointment-cancel" disabled={busy} onClick={()=>cancelAppointment(a)}>{lang==='fr'?'Annuler':'Cancel appointment'}</button></div>}{a.status==='approved'&&<div className="appointment-actions"><button type="button" disabled={busy} onClick={()=>editAppointment(a)}>{lang==='fr'?'Modifier le rendez-vous':'Edit appointment'}</button></div>}{editingAppointment===a.id&&appointmentDraft&&<form className="appointment-edit-form" onSubmit={e=>saveAppointment(e,a)}><label>{lang==='fr'?'Nouvelle date':'New date'}<input required type="date" value={appointmentDraft.date} onChange={e=>setAppointmentDraft(d=>({...d,date:e.target.value}))}/></label><label>{lang==='fr'?'Nouvelle heure (Montréal)':'New time (Montréal)'}<input required type="time" step="1800" value={appointmentDraft.time} onChange={e=>setAppointmentDraft(d=>({...d,time:e.target.value}))}/></label>{appointmentError&&<p role="alert" className="admin-error">{appointmentError}</p>}<p className="admin-muted">{lang==='fr'?'La disponibilité et les conflits seront vérifiés avant la sauvegarde. Le client ne sera pas avisé automatiquement.':'Availability and conflicts are checked before saving. The customer will not be notified automatically.'}</p><div className="appointment-actions"><button type="submit" disabled={busy}>{lang==='fr'?'Enregistrer':'Save changes'}</button><button type="button" onClick={()=>{setEditingAppointment(null);setAppointmentDraft(null)}}>{lang==='fr'?'Annuler':'Cancel'}</button></div></form>}</div></div>)}</div></section>}</>}{error&&<p role="alert" className="admin-error">{error}</p>}</main></div>;
 }
