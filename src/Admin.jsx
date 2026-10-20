@@ -204,6 +204,25 @@ export default function Admin(){
   else await reload();
   setBusy(false);
  }
+ async function moveService(serviceId,direction){
+  if(busy)return;
+  const ordered=[...services].sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)||a.created_at?.localeCompare(b.created_at||'')||0||a.id.localeCompare(b.id));
+  const idx=ordered.findIndex(s=>s.id===serviceId),other=idx+direction;
+  if(idx<0||other<0||other>=ordered.length)return;
+  // Persist a complete unambiguous order even when older services all have sort_order=0.
+  const moved=[...ordered];
+  [moved[idx],moved[other]]=[moved[other],moved[idx]];
+  setBusy(true);setError('');
+  try{
+   // Updating one row at a time is supported by current RLS; use unique
+   // sequential positions, then reload from the database when done.
+   for(let i=0;i<moved.length;i++){
+    const {error}=await supabase.from('services').update({sort_order:(i+1)*10}).eq('id',moved[i].id);
+    if(error)throw error;
+   }
+  }catch(e){setError(e.message)}
+  finally{await reload();setBusy(false)}
+ }
  async function toggleService(s){setBusy(true);setError('');const {error}=await supabase.from('services').update({active:!s.active}).eq('id',s.id);
   if(error)setError(error.message);else await reload();setBusy(false);
  }
@@ -221,6 +240,6 @@ export default function Admin(){
    {serviceMessage&&<p role="alert" className="admin-error">{serviceMessage}</p>}
    <p className="admin-muted">{lang==='fr'?'Modifier la durée influence les créneaux futurs; les rendez-vous existants ne changent pas.':'Changing duration affects future available slots; existing appointments stay unchanged.'}</p>
    <div className="service-edit-actions"><button className="service-save" type="submit" disabled={busy}>{lang==='fr'?'Enregistrer':'Save changes'}</button><button type="button" disabled={busy} onClick={()=>{setEditingService(null);setServiceDraft(null);setServiceMessage('')}}>{lang==='fr'?'Annuler':'Cancel'}</button></div>
-  </form>:<><div className="service-summary"><strong>{lang==='fr'?s.name_fr:s.name_en}</strong><span>{s.duration_minutes} min · {(s.price_cents/100).toFixed(2)} $</span>{(lang==='fr'?s.description_fr:s.description_en)&&<p>{lang==='fr'?s.description_fr:s.description_en}</p>}</div><div className="service-edit-actions"><button type="button" disabled={busy} onClick={()=>beginServiceEdit(s)}>{lang==='fr'?'Modifier':'Edit'}</button><button type="button" disabled={busy} onClick={()=>toggleService(s)}>{s.active?t.enabled:t.disabled}</button><button type="button" className="service-delete" disabled={busy} onClick={()=>deleteService(s)}>{lang==='fr'?'Supprimer':'Delete'}</button></div></>}
+  </form>:<><div className="service-summary"><strong>{lang==='fr'?s.name_fr:s.name_en}</strong><span>{s.duration_minutes} min · {(s.price_cents/100).toFixed(2)} $</span>{(lang==='fr'?s.description_fr:s.description_en)&&<p>{lang==='fr'?s.description_fr:s.description_en}</p>}</div><div className="service-edit-actions"><button type="button" className="service-move" disabled={busy||services[0]?.id===s.id} onClick={()=>moveService(s.id,-1)} aria-label={lang==='fr'?'Monter le service':'Move service up'} title={lang==='fr'?'Monter':'Move up'}>↑ {lang==='fr'?'Monter':'Up'}</button><button type="button" className="service-move" disabled={busy||services[services.length-1]?.id===s.id} onClick={()=>moveService(s.id,1)} aria-label={lang==='fr'?'Descendre le service':'Move service down'} title={lang==='fr'?'Descendre':'Move down'}>↓ {lang==='fr'?'Descendre':'Down'}</button><button type="button" disabled={busy} onClick={()=>beginServiceEdit(s)}>{lang==='fr'?'Modifier':'Edit'}</button><button type="button" disabled={busy} onClick={()=>toggleService(s)}>{s.active?t.enabled:t.disabled}</button><button type="button" className="service-delete" disabled={busy} onClick={()=>deleteService(s)}>{lang==='fr'?'Supprimer':'Delete'}</button></div></>}
  </div>)}</div></section>}{tab==='appointments'&&<section className="admin-panel"><h2>{t.appointments}</h2><div className="admin-items">{appointments.length===0?t.noAppointments:appointments.map(a=><div className="admin-item" key={a.id}><div><strong>{a.customer_name}</strong> · {a.customer_email}<p>{new Date(a.starts_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto'})} · {lang==='fr'?a.services?.name_fr:a.services?.name_en} · {a.status}</p><p className="appointment-reference">{lang==='fr'?'Référence':'Reference'} : <strong>{bookingReference(a.id,a.starts_at)}</strong></p>{a.status==='pending'&&<div className="appointment-actions"><button type="button" disabled={busy} onClick={()=>decideAppointment(a.id,'approved')}>{lang==='fr'?'Approuver':'Approve'}</button><button type="button" disabled={busy} onClick={()=>decideAppointment(a.id,'declined')}>{lang==='fr'?'Refuser':'Decline'}</button></div>}{['pending','approved'].includes(a.status)&&<div className="appointment-actions"><button type="button" className="appointment-cancel" disabled={busy} onClick={()=>cancelAppointment(a)}>{lang==='fr'?'Annuler':'Cancel appointment'}</button></div>}{a.status==='approved'&&<div className="appointment-actions"><button type="button" disabled={busy} onClick={()=>editAppointment(a)}>{lang==='fr'?'Modifier le rendez-vous':'Edit appointment'}</button></div>}{editingAppointment===a.id&&appointmentDraft&&<form className="appointment-edit-form" onSubmit={e=>saveAppointment(e,a)}><label>{lang==='fr'?'Nouvelle date':'New date'}<input required type="date" value={appointmentDraft.date} onChange={e=>setAppointmentDraft(d=>({...d,date:e.target.value}))}/></label><label>{lang==='fr'?'Nouvelle heure (Montréal)':'New time (Montréal)'}<input required type="time" step="1800" value={appointmentDraft.time} onChange={e=>setAppointmentDraft(d=>({...d,time:e.target.value}))}/></label>{appointmentError&&<p role="alert" className="admin-error">{appointmentError}</p>}<p className="admin-muted">{lang==='fr'?'La disponibilité et les conflits seront vérifiés avant la sauvegarde. Le client ne sera pas avisé automatiquement.':'Availability and conflicts are checked before saving. The customer will not be notified automatically.'}</p><div className="appointment-actions"><button type="submit" disabled={busy}>{lang==='fr'?'Enregistrer':'Save changes'}</button><button type="button" onClick={()=>{setEditingAppointment(null);setAppointmentDraft(null)}}>{lang==='fr'?'Annuler':'Cancel'}</button></div></form>}</div></div>)}</div></section>}</>}{error&&<p role="alert" className="admin-error">{error}</p>}</main></div>;
 }
