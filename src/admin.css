@@ -44,9 +44,12 @@
 .admin-primary{padding:12px 18px;border:0;border-radius:5px;background:#d58bac;color:#15080d;cursor:pointer;font-weight:700}
 .bulk-preview{margin-top:18px;border:1px solid #8a5b75;background:#241521;border-radius:7px;padding:15px}
 .slot-row-actions{display:flex;gap:7px;flex-wrap:wrap}
-.slot-edit-fields{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;width:100%}
-.slot-edit-fields label{flex:1 1 110px}
-.slot-edit-fields button{flex:0 1 auto}
+.slot-edit-fields{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;width:100%;min-width:0}
+.slot-edit-times{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;min-width:0;width:100%}
+.slot-edit-times label{width:100%;min-width:0;max-width:100%}
+.slot-edit-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;align-items:center}
+.slot-edit-actions button{min-height:42px;min-width:100px;max-width:100%;padding:10px 16px}
+.slot-edit-actions .slot-save{background:#d58bac;color:#160a10;font-weight:700;border-color:#d58bac}
 @media(max-width:700px){
  .admin-bar{padding:10px 12px;gap:8px;flex-wrap:wrap}
  .admin-logo{font-size:28px}
@@ -71,4 +74,23 @@
  .admin-form{grid-template-columns:1fr}
  .calendar-date{padding:3px}
  .calendar-count{font-size:7px}
+}
+
+/* iOS Safari date/time controls and narrow phone layouts */
+.admin-page input[type="date"],
+.admin-page input[type="time"]{display:block;width:100%;max-width:100%;min-width:0;min-inline-size:0;box-sizing:border-box;font-size:16px;line-height:1.4;overflow:hidden}
+.admin-page input[type="date"]::-webkit-date-and-time-value,
+.admin-page input[type="time"]::-webkit-date-and-time-value{min-width:0;text-align:left}
+@media(max-width:700px){
+ .admin-form{grid-template-columns:minmax(0,1fr)}
+ .admin-form>button{grid-column:auto;width:100%;min-height:46px}
+ .slot-edit-row{display:block;width:100%}
+ .slot-edit-fields{width:100%;min-width:0}
+ .slot-edit-times{grid-template-columns:minmax(0,1fr)}
+ .slot-edit-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%}
+ .slot-edit-actions button{width:100%;min-width:0;min-height:46px;margin:0}
+ .admin-panel .admin-item button{white-space:normal}
+}
+@media(max-width:370px){
+ .slot-edit-actions{grid-template-columns:minmax(0,1fr)}
 }
