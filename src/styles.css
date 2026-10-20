@@ -55,3 +55,11 @@ h1.hero-title{margin:0;align-items:center}
 /* Hair to Buy product photo */
 .hair-product-photo{display:flex;justify-content:center;margin:0 auto 26px}
 .hair-product-photo img{height:clamp(300px,48vw,380px);width:auto;display:block;filter:drop-shadow(0 14px 26px rgba(0,0,0,.55))}
+
+/* Matched English/French selfie neon: identical line and bow treatments. */
+.selfies-bow{bottom:-19px;width:136px;height:114px;font-size:0;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 0 7px #f780ba) drop-shadow(0 0 17px #df6aa6)}
+.selfies-bow-svg{display:block;width:100%;height:100%;overflow:visible}
+.selfies-line{height:3px;background:#ffc0de;box-shadow:0 0 5px #ffadcf,0 0 13px #fa78b3,0 0 24px #e75c9b;border-radius:4px}
+.selfies-upper{font-weight:400;text-shadow:0 0 7px #ffaad6,0 0 17px #e977af,0 0 29px #cd4287}
+.selfies-script{text-shadow:0 0 6px #fff,0 0 15px #f7e3ef,0 0 26px #e4b5ce}
+@media(max-width:500px){.selfies-bow{width:110px;height:93px;bottom:-12px}}
