@@ -191,3 +191,11 @@
  .service-summary{flex:1 1 100%}
  .service-edit-form{overflow-wrap:anywhere}
 }
+
+/* Destructive service action remains visually distinct and fits mobile. */
+.service-edit-actions .service-delete{color:#ffb8c3;border-color:#a45b69;background:#30141d}
+.service-edit-actions .service-delete:hover{background:#4a1c29}
+@media(max-width:700px){
+ .service-admin-item>.service-edit-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .service-admin-item>.service-edit-actions .service-delete{grid-column:1/-1}
+}
