@@ -26,28 +26,48 @@ Deno.serve(async (req) => {
   const current=payload.record;
   if (!current || typeof current.id!=="string" || typeof current.starts_at!=="string" || typeof current.status!=="string")return new Response("Ignored",{status:200});
   const previous=payload.old_record||{};
-  let heading="";
-  if(payload.type==="INSERT" && current.status==="pending")heading="🆕 New appointment request";
-  else if(payload.type==="UPDATE" && previous.status!==current.status){
-    if(current.status==="approved")heading="✅ Appointment approved";
-    else if(current.status==="declined")heading="❌ Appointment declined";
-    else if(current.status==="cancelled")heading="🚫 Appointment cancelled";
-  } else if(payload.type==="UPDATE" && (previous.starts_at!==current.starts_at || previous.ends_at!==current.ends_at)) heading="📅 Appointment rescheduled";
+  // The BEFORE UPDATE trigger records the real event; webhook old_record may only
+  // contain a primary key and must not be used to infer an approval.
+  let event=payload.type==="INSERT"?"created":
+    (typeof current.last_booking_event==="string"?current.last_booking_event:"");
+  if(!event && payload.type==="UPDATE"){
+    // Compatibility with older events that included the full old row.
+    if(typeof previous.starts_at==="string"&&previous.starts_at!==current.starts_at) event="rescheduled";
+    else if(typeof previous.ends_at==="string"&&previous.ends_at!==current.ends_at)event="rescheduled";
+    else if(typeof previous.status==="string"&&previous.status!==current.status)event=String(current.status);
+  }
+  const headings:Record<string,string>={
+    created:"🆕 New appointment request",
+    approved:"✅ Appointment approved",
+    declined:"❌ Appointment declined",
+    cancelled:"🚫 Appointment cancelled",
+    rescheduled:"📅 Appointment time changed — awaiting customer confirmation",
+    reschedule_confirmed:"✅ Customer confirmed the new appointment time",
+    reschedule_needs_contact:"⚠️ Customer cannot attend the proposed time — follow up needed"
+  };
+  if(event==="created"&&current.status!=="pending")return new Response("No notification needed",{status:200});
+  const heading=headings[event]||"";
   if(!heading)return new Response("No notification needed",{status:200});
   const db=createClient(supabaseUrl,serviceKey,{auth:{persistSession:false}});
   const {data,error}=await db.from("appointments")
-    .select("id,customer_name,customer_email,starts_at,ends_at,status,services(name_en)")
+    .select("id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,services(name_en)")
     .eq("id",current.id).single();
   if(error||!data){console.error("telegram-booking: appointment lookup failed",{code:error?.code,message:error?.message});return new Response("Appointment lookup failed",{status:500});}
   const serviceName=Array.isArray(data.services)?data.services[0]?.name_en:(data.services as {name_en?:string}|null)?.name_en;
+  const rescheduled=event==="rescheduled";
+  const oldTime=data.reschedule_previous_starts_at?monTime(data.reschedule_previous_starts_at):null;
   const lines=[
     heading,
     "",
     "Client: "+escapeHtml(data.customer_name),
     "Service: "+escapeHtml(serviceName??"Service"),
-    "Starts: "+escapeHtml(monTime(data.starts_at)),
+    ...(rescheduled&&oldTime?["Previous time: "+escapeHtml(oldTime)]:[]),
+    (rescheduled?"New time: ":"Starts: ")+escapeHtml(monTime(data.starts_at)),
     "Ends: "+escapeHtml(monTime(data.ends_at)),
     "Status: "+escapeHtml(data.status),
+    ...(rescheduled?["Customer response: awaiting confirmation"]:[]),
+    ...(event==="reschedule_confirmed"?["Customer response: confirmed new time"]:[]),
+    ...(event==="reschedule_needs_contact"?["Customer response: cannot attend proposed time; please contact customer"]:[]),
     "Reference: "+escapeHtml(shortRef(data.id,data.starts_at)),
     "",
     "Review: https://hair-by-lynna.pages.dev/admin"
@@ -56,18 +76,27 @@ Deno.serve(async (req) => {
   // on Supabase. Email errors must not prevent the already-working Telegram notification.
   const brevoKey=Deno.env.get("BREVO_API_KEY"),sender=Deno.env.get("BOOKING_EMAIL_FROM");
   if(brevoKey&&sender&&typeof data.customer_email==="string"&&data.customer_email.trim()){
-    const subject= current.status==="approved" ? "Hair by Lynna — Appointment approved"
-      : current.status==="declined" ? "Hair by Lynna — Appointment declined"
-      : current.status==="cancelled" ? "Hair by Lynna — Appointment cancelled"
-      : heading.includes("rescheduled") ? "Hair by Lynna — Appointment updated"
-      : "Hair by Lynna — Booking request received";
+    const subjects:Record<string,string>={
+      created:"Hair by Lynna — Booking request received",
+      approved:"Hair by Lynna — Appointment approved",
+      declined:"Hair by Lynna — Appointment declined",
+      cancelled:"Hair by Lynna — Appointment cancelled",
+      rescheduled:"Hair by Lynna — Your appointment time has changed",
+      reschedule_confirmed:"Hair by Lynna — New appointment time confirmed",
+      reschedule_needs_contact:"Hair by Lynna — We received your scheduling concern"
+    };
+    const subject=subjects[event]||"Hair by Lynna — Appointment update";
     const reference=shortRef(data.id,data.starts_at);
     const privateLink="https://hair-by-lynna.pages.dev/?booking="+encodeURIComponent(data.id)+"&ref="+encodeURIComponent(reference)+"#booking-status";
     const mailText=[
       subject,"", "Hi "+data.customer_name+",",
       "Service: "+(serviceName??"Service"),
-      "Date & time: "+monTime(data.starts_at),
+      ...(rescheduled&&oldTime?["Previous date & time: "+oldTime]:[]),
+      (rescheduled?"New proposed date & time: ":"Date & time: ")+monTime(data.starts_at),
       "Status: "+data.status,
+      ...(rescheduled?["Please open the booking-status link and confirm whether you can attend the new time."]:[]),
+      ...(event==="reschedule_confirmed"?["Thank you for confirming your new appointment time."]:[]),
+      ...(event==="reschedule_needs_contact"?["We received your response. Lynna can contact you to arrange another time. Your appointment has not been cancelled."]:[]),
       "Reference: "+reference,
       "Check your appointment status ("+reference+"): "+privateLink,
       "", "Keep your booking status link private.",
@@ -79,10 +108,13 @@ Deno.serve(async (req) => {
        <h2 style="font-size:19px;font-weight:600;margin:0 0 18px;">${escapeHtml(subject)}</h2>
        <p>Hi ${escapeHtml(data.customer_name)},</p>
        <p style="line-height:1.8;">Service: <strong>${escapeHtml(serviceName??"Service")}</strong><br/>
-       Date &amp; time: <strong>${escapeHtml(monTime(data.starts_at))}</strong><br/>
+       ${rescheduled&&oldTime?'Previous date &amp; time: <strong>'+escapeHtml(oldTime)+'</strong><br/>':''}
+       ${rescheduled?'New proposed date &amp; time:':'Date &amp; time:'} <strong>${escapeHtml(monTime(data.starts_at))}</strong><br/>
        Status: <strong>${escapeHtml(data.status)}</strong><br/>
        Reference: <strong style="color:#f2b3d1;">${escapeHtml(reference)}</strong></p>
-       <a href="${escapeHtml(privateLink)}" style="display:inline-block;background:#e99ec2;color:#21121e;padding:15px 22px;border-radius:7px;text-decoration:none;font-weight:bold;margin:12px 0;">Check booking status</a>
+       ${rescheduled?'<p style="color:#ffd6e9;font-weight:bold;">Please confirm the new appointment time or let Lynna know if you cannot attend, using the link below.</p>':''}
+       ${event==="reschedule_needs_contact"?'<p>Lynna has been informed that the proposed time does not work for you. She can follow up to arrange another time. Your booking remains active.</p>':''}
+       <a href="${escapeHtml(privateLink)}" style="display:inline-block;background:#e99ec2;color:#21121e;padding:15px 22px;border-radius:7px;text-decoration:none;font-weight:bold;margin:12px 0;">${rescheduled?'Respond to new appointment time':'Check booking status'}</a>
        <p style="font-size:12px;color:#d3aec0;line-height:1.5;">Use the same email you booked with to view your status. Keep this link private.</p>
        <p style="margin-top:24px;">Hair by Lynna</p>
       </div></body></html>`;
