@@ -250,3 +250,16 @@
 .appointment-reschedule-review p{font-size:12px;margin:7px 0;line-height:1.5}
 .appointment-reschedule-review.needs-contact{border-color:#e4a77c;background:#312019}
 .appointment-reschedule-review.needs-contact strong{color:#ffcf9a}
+
+/* Service durations entered as separate hours and minutes, including on mobile. */
+.admin-page .service-duration-fields{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:10px;
+ width:100%;
+ min-width:0;
+ align-items:end;
+}
+.admin-page .service-duration-fields label{width:100%;min-width:0}
+.admin-page .service-duration-fields input{width:100%;max-width:100%;min-width:0;box-sizing:border-box;font-size:16px}
+@media(max-width:370px){.admin-page .service-duration-fields{gap:8px}}
