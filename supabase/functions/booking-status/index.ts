@@ -4,7 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Access-Control-Allow-Origin":"https://hair-by-lynna.pages.dev","Vary":"Origin"}});
 const idPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 Deno.serve(async req=>{
- if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"Access-Control-Allow-Origin":"https://hair-by-lynna.pages.dev","Access-Control-Allow-Headers":"content-type,apikey,authorization","Access-Control-Allow-Methods":"POST,OPTIONS"}});
+ if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"Access-Control-Allow-Origin":"https://hair-by-lynna.pages.dev","Access-Control-Allow-Headers":"content-type,apikey,authorization,x-client-info,x-supabase-api-version","Access-Control-Allow-Methods":"POST,OPTIONS"}});
  if(req.method!=="POST")return json({error:"Method not allowed"},405);
  let body:{id?:unknown;email?:unknown};
  try{body=await req.json()}catch{return json({error:"Invalid request"},400)}
