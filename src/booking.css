@@ -39,3 +39,148 @@
 .booking-friendly-reference{display:flex;align-items:flex-start;flex-direction:column;gap:8px;margin-top:12px;padding:14px;border:1px solid #9e6687;border-radius:7px;background:#34202c;max-width:100%;overflow-wrap:anywhere}
 .booking-friendly-reference span{color:#dcb4c8;font-size:12px}
 .booking-friendly-reference strong{color:#ffe5f0;font-size:clamp(16px,4vw,24px);letter-spacing:.08em;font-weight:600}
+
+
+/* Centered booking-status card, matching Hair by Lynna's black / soft pink design. */
+.book .booking-status-panel.customer-booking{
+  width:min(100%,650px);
+  margin:52px auto 32px;
+  padding:clamp(22px,4vw,38px);
+  border:1px solid #925a79;
+  border-radius:13px;
+  background:linear-gradient(155deg,#281623 0%,#120a12 76%);
+  box-shadow:0 18px 44px #0006,0 0 26px #d978af12;
+  color:#f9eaf1;
+  text-align:center;
+  scroll-margin-top:100px;
+}
+.booking-status-panel .booking-status-kicker{
+  display:block;
+  color:#d99dbb;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.25em;
+  text-transform:uppercase;
+  margin:0 auto 10px;
+}
+.book .booking-status-panel h3{
+  margin:0 auto 14px;
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(30px,4vw,39px);
+  font-weight:400;
+  letter-spacing:.045em;
+  line-height:1.2;
+  text-align:center;
+  color:#f4bed9;
+}
+.book .booking-status-panel .booking-status-intro,
+.book .booking-status-panel .booking-status-helper{
+  max-width:490px;
+  margin:12px auto 20px;
+  line-height:1.75;
+  color:#e1becf;
+  font-size:13px;
+  text-align:center;
+}
+.booking-status-panel .booking-status-form{
+  width:min(100%,470px);
+  margin:23px auto 0;
+  gap:16px;
+}
+.booking-status-panel .booking-status-form label{
+  color:#f4cce0;
+  font-size:13px;
+  font-weight:500;
+}
+.booking-status-panel .booking-status-form input:not([type="checkbox"]){
+  background:#130b12;
+  color:#fff3f8;
+  border:1px solid #b57a99;
+  border-radius:7px;
+  min-height:52px;
+  font-size:16px;
+  padding:13px 15px;
+  letter-spacing:normal;
+}
+.booking-status-panel .booking-status-form input:focus-visible{
+  outline:2px solid #f4b1d1;
+  outline-offset:2px;
+}
+.booking-status-panel .booking-status-form .booking-status-submit{
+  width:100%;
+  min-height:50px;
+  padding:14px 20px;
+  border:1px solid #ebadc9;
+  border-radius:7px;
+  background:#df9cbd;
+  color:#1c0c17;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:background .16s ease,transform .16s ease;
+}
+.booking-status-panel .booking-status-form .booking-status-submit:hover:not(:disabled){
+  background:#f2bdd6;
+  transform:translateY(-1px);
+}
+.booking-status-panel .booking-status-form .booking-status-submit:disabled{
+  opacity:.68;
+  cursor:wait;
+}
+.booking-status-panel .booking-status-ref{
+  max-width:470px;
+  margin:18px auto 0;
+  align-items:center;
+}
+.book .booking-status-panel .booking-status-helper{
+  font-size:11px;
+  color:#bf9dad;
+  margin:18px auto 0;
+}
+.book .booking-status-panel .booking-status-result,
+.book .booking-status-panel .booking-status-error{
+  width:min(100%,470px);
+  max-width:470px;
+  margin:20px auto 0;
+  padding:14px 16px;
+  border:1px solid #aa7392;
+  border-radius:8px;
+  background:#382032;
+  color:#ffe6f2;
+  text-align:left;
+  overflow-wrap:anywhere;
+}
+.book .booking-status-panel .booking-status-error{
+  border-color:#bd6376;
+  color:#ffd3d9;
+  background:#381822;
+}
+.booking-status-panel .booking-status-label{
+  display:block;
+  font-size:11px;
+  color:#d3b2c4;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+}
+.booking-status-panel .booking-status-value{
+  display:block;
+  color:#ffd5ea;
+  font-family:'Cormorant Garamond',serif;
+  font-size:28px;
+  font-weight:500;
+  margin:7px 0;
+}
+.booking-status-panel .booking-status-reference{
+  font-weight:700;
+  color:#f5b0cf !important;
+  overflow-wrap:anywhere;
+}
+@media(max-width:600px){
+  .book .booking-status-panel.customer-booking{margin:38px auto 24px;padding:24px 17px}
+  .booking-status-panel .booking-status-form{width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+  .booking-status-panel .booking-status-form .booking-status-submit{transition:none}
+}
