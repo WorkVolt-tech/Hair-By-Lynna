@@ -234,3 +234,12 @@
 .service-drag-handle:active{cursor:grabbing}
 .service-drop-target{border-color:#eab0cd!important;box-shadow:inset 0 0 0 1px #eab0cd;background:#291823}
 @media(max-width:700px){.service-drag-row{flex:1 1 100%;width:100%}.service-drag-handle{flex-basis:44px}}
+
+/* Owner's daily client limit */
+.daily-limit-setting{margin:14px 0 20px;padding:16px;border:1px solid #bc728f;border-radius:9px;background:#24121e}
+.daily-limit-label{display:flex;align-items:flex-start;gap:12px;cursor:pointer;color:#ffdaea}
+.daily-limit-label input[type=checkbox]{width:22px;height:22px;flex:0 0 22px;margin:1px 0 0;accent-color:#ee91bb;cursor:pointer}
+.daily-limit-label input:disabled{cursor:not-allowed}
+.daily-limit-label span{display:flex;flex-direction:column;gap:7px;line-height:1.4}
+.daily-limit-label strong{font-size:1rem}
+.daily-limit-label small{font-size:.85rem;color:#e2bdce;max-width:62ch}
