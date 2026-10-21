@@ -243,3 +243,10 @@
 .daily-limit-label span{display:flex;flex-direction:column;gap:7px;line-height:1.4}
 .daily-limit-label strong{font-size:1rem}
 .daily-limit-label small{font-size:.85rem;color:#e2bdce;max-width:62ch}
+
+/* Admin can see whether the customer accepted a changed appointment time. */
+.appointment-reschedule-review{margin:10px 0;padding:10px 12px;border:1px solid #bf8aab;border-radius:7px;background:#2d1b2a;color:#f6d9e6}
+.appointment-reschedule-review strong{display:block;font-size:13px;line-height:1.5;color:#ffcce7}
+.appointment-reschedule-review p{font-size:12px;margin:7px 0;line-height:1.5}
+.appointment-reschedule-review.needs-contact{border-color:#e4a77c;background:#312019}
+.appointment-reschedule-review.needs-contact strong{color:#ffcf9a}
