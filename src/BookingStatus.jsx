@@ -14,6 +14,7 @@ export default function BookingStatus({ language, initialId = '', initialReferen
  const [email, setEmail] = useState('');
  const [record, setRecord] = useState(null);
  const [loading, setLoading] = useState(false);
+ const [replyBusy, setReplyBusy] = useState(false);
  const [error, setError] = useState('');
  const [message, setMessage] = useState('');
  const words = { pending:fr?'En attente':'Pending',approved:fr?'Approuvé':'Approved',
@@ -44,6 +45,27 @@ export default function BookingStatus({ language, initialId = '', initialReferen
    }
   }catch(ex){setError(ex.message||'Unable to check booking.')}
   finally{setLoading(false)}
+ }
+ async function respondToNewTime(response) {
+  if (!privateId || replyBusy || !record || record.status !== 'approved' || record.reschedule_response !== 'pending') return;
+  setError('');setMessage('');setReplyBusy(true);
+  try {
+   const {data, error:fnError}=await supabase.functions.invoke('booking-status',{
+    body:{action:'respond_reschedule',id:privateId,email:email.trim(),
+     response,revision:record.reschedule_revision}
+   });
+   if(fnError){
+    let detail='';
+    try{if(fnError.context?.json)detail=(await fnError.context.json())?.error||''}catch{}
+    throw Error(detail||(fr?'Votre réponse n’a pas été enregistrée. Réessayez.':'Your response was not saved. Please try again.'));
+   }
+   if(data?.error)throw Error(data.error);
+   setRecord(data);
+   setMessage(response==='confirmed'
+     ?(fr?'Merci! Votre confirmation a été transmise à Lynna.':'Thank you! Lynna has received your confirmation.')
+     :(fr?'Nous avons prévenu Lynna que cette heure ne vous convient pas. Elle pourra vous contacter pour en discuter.':'We have informed Lynna that this time does not work for you. She can contact you to arrange another time.'));
+  }catch(ex){setError(ex.message||'Please try again.')}
+  finally{setReplyBusy(false)}
  }
  const fmt = iso => new Date(iso).toLocaleString(fr?'fr-CA':'en-CA',{dateStyle:'full',timeStyle:'short',timeZone:'America/Toronto'});
  const shownReference=record?bookingReference(record.id,record.starts_at):(privateId?friendly:reference.trim().toUpperCase());
@@ -80,6 +102,19 @@ export default function BookingStatus({ language, initialId = '', initialReferen
    <p>{fmt(record.starts_at)} — {new Date(record.ends_at).toLocaleTimeString(fr?'fr-CA':'en-CA',
      {hour:'numeric',minute:'2-digit',timeZone:'America/Toronto'})}</p>
    <p className="booking-status-reference">{shownReference}</p>
+   {record.status==='approved' && record.reschedule_response==='pending' && <div className="booking-reschedule-response">
+    <strong className="booking-reschedule-title">{fr?'Votre horaire a été modifié':'Your appointment time has changed'}</strong>
+    {record.reschedule_previous_starts_at&&<p>{fr?'Ancien horaire':'Previous time'}: <strong>{fmt(record.reschedule_previous_starts_at)}</strong></p>}
+    <p>{fr?'Nouvel horaire proposé':'New proposed time'}: <strong>{fmt(record.starts_at)}</strong></p>
+    <p>{fr?'Pouvez-vous vous présenter à cette nouvelle heure?':'Can you attend at the new time?'}</p>
+    <div className="booking-reschedule-actions">
+     <button type="button" disabled={replyBusy} onClick={()=>respondToNewTime('confirmed')}>{fr?'Confirmer la nouvelle heure':'Confirm new time'}</button>
+     <button type="button" disabled={replyBusy} className="booking-reschedule-decline" onClick={()=>respondToNewTime('needs_contact')}>{fr?'Cette heure ne me convient pas':"I can't make this time"}</button>
+    </div>
+    <p className="booking-reschedule-hint">{fr?'Si cette heure ne vous convient pas, Lynna vous contactera pour trouver une solution. Le rendez-vous ne sera pas annulé automatiquement.':'If this time does not work, Lynna can follow up. Your appointment will not be cancelled automatically.'}</p>
+   </div>}
+   {record.status==='approved'&&record.reschedule_response==='confirmed'&&<p className="booking-reschedule-state">{fr?'Nouvel horaire confirmé par vous.':'You confirmed the updated time.'}</p>}
+   {record.status==='approved'&&record.reschedule_response==='needs_contact'&&<p className="booking-reschedule-state">{fr?'Vous avez indiqué que cet horaire ne vous convient pas. Lynna a été informée.':'You indicated that the new time does not work for you. Lynna has been informed.'}</p>}
   </div>}
  </section>;
 }
