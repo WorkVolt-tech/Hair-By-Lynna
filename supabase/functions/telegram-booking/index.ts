@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
   if(!heading)return new Response("No notification needed",{status:200});
   const db=createClient(supabaseUrl,serviceKey,{auth:{persistSession:false}});
   const {data,error}=await db.from("appointments")
-    .select("id,customer_name,starts_at,ends_at,status,services(name_en)")
+    .select("id,customer_name,customer_email,starts_at,ends_at,status,services(name_en)")
     .eq("id",current.id).single();
   if(error||!data){console.error("telegram-booking: appointment lookup failed",{code:error?.code,message:error?.message});return new Response("Appointment lookup failed",{status:500});}
   const serviceName=Array.isArray(data.services)?data.services[0]?.name_en:(data.services as {name_en?:string}|null)?.name_en;
@@ -52,6 +52,34 @@ Deno.serve(async (req) => {
     "",
     "Review: https://hair-by-lynna.pages.dev/admin"
   ];
+  // Optional customer email via Resend. Configure RESEND_API_KEY and BOOKING_EMAIL_FROM
+  // on Supabase. Email errors must not prevent the already-working Telegram notification.
+  const resendKey=Deno.env.get("RESEND_API_KEY"),sender=Deno.env.get("BOOKING_EMAIL_FROM");
+  if(resendKey&&sender&&typeof data.customer_email==="string"&&data.customer_email.trim()){
+    const subject= current.status==="approved" ? "Hair by Lynna — Appointment approved"
+      : current.status==="declined" ? "Hair by Lynna — Appointment declined"
+      : current.status==="cancelled" ? "Hair by Lynna — Appointment cancelled"
+      : heading.includes("rescheduled") ? "Hair by Lynna — Appointment updated"
+      : "Hair by Lynna — Booking request received";
+    const privateLink="https://hair-by-lynna.pages.dev/?booking="+encodeURIComponent(data.id)+"#booking-status";
+    const mailText=[
+      subject,"", "Hi "+data.customer_name+",",
+      "Service: "+(serviceName??"Service"),
+      "Date & time: "+monTime(data.starts_at),
+      "Status: "+data.status,
+      "Reference: "+shortRef(data.id,data.starts_at),
+      "Check your appointment status: "+privateLink,
+      "", "This request is subject to Lynna's approval. The booking link is private; keep it safe.",
+      "Hair by Lynna"
+    ].join("\n");
+    try {
+      const mail=await fetch("https://api.resend.com/emails",{method:"POST",headers:{
+        "Authorization":"Bearer "+resendKey,"Content-Type":"application/json"
+      },body:JSON.stringify({from:sender,to:[data.customer_email],subject,text:mailText})});
+      if(!mail.ok)console.error("telegram-booking: customer email failed",mail.status,(await mail.text()).slice(0,400));
+      else console.info("telegram-booking: customer email accepted");
+    }catch(e){console.error("telegram-booking: customer email network error",String(e));}
+  } else if(!resendKey||!sender){console.info("telegram-booking: customer email not configured; Telegram only");}
   const response=await fetch("https://api.telegram.org/bot"+token+"/sendMessage",{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({chat_id:chatId,text:lines.join("\n"),parse_mode:"HTML",disable_web_page_preview:true})
