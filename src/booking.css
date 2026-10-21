@@ -184,3 +184,30 @@
 @media(prefers-reduced-motion:reduce){
   .booking-status-panel .booking-status-form .booking-status-submit{transition:none}
 }
+
+/* Customer reply to an owner-proposed appointment time change. */
+.booking-status-panel .booking-reschedule-response{
+  margin-top:20px;padding:18px 15px;border:1px solid #d99bb9;
+  border-radius:9px;background:#2d1a27;color:#ffe3ef;
+}
+.booking-status-panel .booking-reschedule-title{
+  display:block;font-size:16px;color:#ffe3ef;line-height:1.5;
+}
+.booking-status-panel .booking-reschedule-response p{
+  margin:10px auto;color:#f5d6e5;font-size:13px;line-height:1.65;
+}
+.booking-status-panel .booking-reschedule-actions{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.booking-status-panel .booking-reschedule-actions button{
+  width:100%;min-height:47px;border:1px solid #e7a6c7;border-radius:7px;
+  background:#e6a3c3;color:#24111d;font-weight:700;font-size:13px;
+  cursor:pointer;padding:11px 14px;
+}
+.booking-status-panel .booking-reschedule-actions button.booking-reschedule-decline{
+  background:transparent;color:#ffcee5;border-color:#926581;
+}
+.booking-status-panel .booking-reschedule-actions button:disabled{opacity:.6;cursor:wait}
+.booking-status-panel .booking-reschedule-hint{font-size:11px!important;color:#d5adc2!important}
+.book .booking-status-panel .booking-reschedule-state{
+  padding:14px;margin-top:16px;background:#332132;color:#f6c8df;
+  border:1px solid #af7291;border-radius:8px;text-align:center;
+}
