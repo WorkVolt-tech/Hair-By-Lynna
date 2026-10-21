@@ -89,16 +89,41 @@ Deno.serve(async req=>{
     return json({sent:true,message:genericMessage});
   }
 
-  if(body.action && body.action!=="check")return json({error:"Invalid request"},400);
+  const action=body.action??"check";
+  if(action!=="check"&&action!=="respond_reschedule")return json({error:"Invalid request"},400);
   const id=typeof body.id==="string"?body.id.trim():"";
   if(!idPattern.test(id))return json({error:"Open the private booking link from your email."},400);
-  const {data,error}=await db.from("appointments")
-    .select("id,customer_email,starts_at,ends_at,status,services(name_en,name_fr)")
-    .eq("id",id).maybeSingle();
+  const fields="id,customer_email,starts_at,ends_at,status,services(name_en,name_fr),reschedule_response,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_revision";
+  const {data,error}=await db.from("appointments").select(fields).eq("id",id).maybeSingle();
   if(error){console.error("booking-status: appointment lookup failed",error.code);return json({error:"Booking status temporarily unavailable."},503)}
   if(!data||data.customer_email?.trim().toLowerCase()!==email)
     return json({error:"Booking not found. Check the email used when booking."},404);
-  const service=Array.isArray(data.services)?data.services[0]:data.services;
-  return json({id:data.id,status:data.status,starts_at:data.starts_at,ends_at:data.ends_at,
-    service_en:service?.name_en??"",service_fr:service?.name_fr??""});
+
+  let appointment=data;
+  if(action==="respond_reschedule"){
+    const reply=body.response;
+    const revision=body.revision;
+    if(reply!=="confirmed"&&reply!=="needs_contact")return json({error:"Invalid response."},400);
+    if(!Number.isSafeInteger(revision)||revision<1)return json({error:"Invalid proposal."},400);
+    if(data.status!=="approved"||data.reschedule_response!=="pending"||data.reschedule_revision!==revision)
+      return json({error:"That reschedule request has changed. Check the latest appointment information before responding."},409);
+    // Conditional update prevents double responses and stale clicks after a newer reschedule.
+    const {data:updated,error:updateError}=await db.from("appointments")
+      .update({reschedule_response:reply})
+      .eq("id",id).eq("status","approved")
+      .eq("reschedule_response","pending")
+      .eq("reschedule_revision",revision)
+      .select(fields).maybeSingle();
+    if(updateError){console.error("booking-status: reschedule response failed",updateError.code);return json({error:"Could not save your response. Please try again."},503)}
+    if(!updated)return json({error:"Your appointment has changed. Please check its latest status."},409);
+    appointment=updated;
+  }
+
+  const service=Array.isArray(appointment.services)?appointment.services[0]:appointment.services;
+  return json({id:appointment.id,status:appointment.status,starts_at:appointment.starts_at,ends_at:appointment.ends_at,
+    service_en:service?.name_en??"",service_fr:service?.name_fr??"",
+    reschedule_response:appointment.reschedule_response,
+    reschedule_previous_starts_at:appointment.reschedule_previous_starts_at,
+    reschedule_previous_ends_at:appointment.reschedule_previous_ends_at,
+    reschedule_revision:appointment.reschedule_revision});
 });
