@@ -52,10 +52,10 @@ Deno.serve(async (req) => {
     "",
     "Review: https://hair-by-lynna.pages.dev/admin"
   ];
-  // Optional customer email via Resend. Configure RESEND_API_KEY and BOOKING_EMAIL_FROM
+  // Optional customer email via Brevo. Configure BREVO_API_KEY and BOOKING_EMAIL_FROM
   // on Supabase. Email errors must not prevent the already-working Telegram notification.
-  const resendKey=Deno.env.get("RESEND_API_KEY"),sender=Deno.env.get("BOOKING_EMAIL_FROM");
-  if(resendKey&&sender&&typeof data.customer_email==="string"&&data.customer_email.trim()){
+  const brevoKey=Deno.env.get("BREVO_API_KEY"),sender=Deno.env.get("BOOKING_EMAIL_FROM");
+  if(brevoKey&&sender&&typeof data.customer_email==="string"&&data.customer_email.trim()){
     const subject= current.status==="approved" ? "Hair by Lynna — Appointment approved"
       : current.status==="declined" ? "Hair by Lynna — Appointment declined"
       : current.status==="cancelled" ? "Hair by Lynna — Appointment cancelled"
@@ -69,17 +69,17 @@ Deno.serve(async (req) => {
       "Status: "+data.status,
       "Reference: "+shortRef(data.id,data.starts_at),
       "Check your appointment status: "+privateLink,
-      "", "This request is subject to Lynna's approval. The booking link is private; keep it safe.",
+      "", "Keep your booking status link private.",
       "Hair by Lynna"
     ].join("\n");
     try {
-      const mail=await fetch("https://api.resend.com/emails",{method:"POST",headers:{
-        "Authorization":"Bearer "+resendKey,"Content-Type":"application/json"
-      },body:JSON.stringify({from:sender,to:[data.customer_email],subject,text:mailText})});
+      const mail=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{
+        "api-key":brevoKey,"Content-Type":"application/json","accept":"application/json"
+      },body:JSON.stringify({sender:{name:"Hair by Lynna",email:sender},replyTo:{email:"xhair.dreams@gmail.com",name:"Lynna"},to:[{email:data.customer_email,name:data.customer_name}],subject,textContent:mailText})});
       if(!mail.ok)console.error("telegram-booking: customer email failed",mail.status,(await mail.text()).slice(0,400));
       else console.info("telegram-booking: customer email accepted");
     }catch(e){console.error("telegram-booking: customer email network error",String(e));}
-  } else if(!resendKey||!sender){console.info("telegram-booking: customer email not configured; Telegram only");}
+  } else if(!brevoKey||!sender){console.info("telegram-booking: customer email not configured; Telegram only");}
   const response=await fetch("https://api.telegram.org/bot"+token+"/sendMessage",{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({chat_id:chatId,text:lines.join("\n"),parse_mode:"HTML",disable_web_page_preview:true})
