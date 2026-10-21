@@ -61,21 +61,35 @@ Deno.serve(async (req) => {
       : current.status==="cancelled" ? "Hair by Lynna — Appointment cancelled"
       : heading.includes("rescheduled") ? "Hair by Lynna — Appointment updated"
       : "Hair by Lynna — Booking request received";
-    const privateLink="https://hair-by-lynna.pages.dev/?booking="+encodeURIComponent(data.id)+"#booking-status";
+    const reference=shortRef(data.id,data.starts_at);
+    const privateLink="https://hair-by-lynna.pages.dev/?booking="+encodeURIComponent(data.id)+"&ref="+encodeURIComponent(reference)+"#booking-status";
     const mailText=[
       subject,"", "Hi "+data.customer_name+",",
       "Service: "+(serviceName??"Service"),
       "Date & time: "+monTime(data.starts_at),
       "Status: "+data.status,
-      "Reference: "+shortRef(data.id,data.starts_at),
-      "Check your appointment status: "+privateLink,
+      "Reference: "+reference,
+      "Check your appointment status ("+reference+"): "+privateLink,
       "", "Keep your booking status link private.",
       "Hair by Lynna"
     ].join("\n");
+    const htmlContent=`<!doctype html><html><body style="margin:0;padding:24px 12px;background:#120c13;font-family:Arial,Helvetica,sans-serif;color:#fbeaf3;">
+      <div style="max-width:540px;margin:auto;background:#21121e;border:1px solid #b57495;border-radius:12px;padding:28px 22px;">
+       <h1 style="color:#f5a6cb;font-size:26px;margin:0 0 18px;">Hair by Lynna</h1>
+       <h2 style="font-size:19px;font-weight:600;margin:0 0 18px;">${escapeHtml(subject)}</h2>
+       <p>Hi ${escapeHtml(data.customer_name)},</p>
+       <p style="line-height:1.8;">Service: <strong>${escapeHtml(serviceName??"Service")}</strong><br/>
+       Date &amp; time: <strong>${escapeHtml(monTime(data.starts_at))}</strong><br/>
+       Status: <strong>${escapeHtml(data.status)}</strong><br/>
+       Reference: <strong style="color:#f2b3d1;">${escapeHtml(reference)}</strong></p>
+       <a href="${escapeHtml(privateLink)}" style="display:inline-block;background:#e99ec2;color:#21121e;padding:15px 22px;border-radius:7px;text-decoration:none;font-weight:bold;margin:12px 0;">Check booking status</a>
+       <p style="font-size:12px;color:#d3aec0;line-height:1.5;">Use the same email you booked with to view your status. Keep this link private.</p>
+       <p style="margin-top:24px;">Hair by Lynna</p>
+      </div></body></html>`;
     try {
       const mail=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{
         "api-key":brevoKey,"Content-Type":"application/json","accept":"application/json"
-      },body:JSON.stringify({sender:{name:"Hair by Lynna",email:sender},replyTo:{email:"xhair.dreams@gmail.com",name:"Lynna"},to:[{email:data.customer_email,name:data.customer_name}],subject,textContent:mailText})});
+      },body:JSON.stringify({sender:{name:"Hair by Lynna",email:sender},replyTo:{email:"xhair.dreams@gmail.com",name:"Lynna"},to:[{email:data.customer_email,name:data.customer_name}],subject,textContent:mailText,htmlContent})});
       if(!mail.ok)console.error("telegram-booking: customer email failed",mail.status,(await mail.text()).slice(0,400));
       else console.info("telegram-booking: customer email accepted");
     }catch(e){console.error("telegram-booking: customer email network error",String(e));}
