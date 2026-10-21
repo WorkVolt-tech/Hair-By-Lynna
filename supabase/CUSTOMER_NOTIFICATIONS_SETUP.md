@@ -1,19 +1,21 @@
 # Hair by Lynna — Customer status and email setup
 
 ## 1. Secure booking-status page
-The bilingual public website now includes a status lookup. On successful new booking it displays a private link of the form:
-`https://hair-by-lynna.pages.dev/?booking=<full-appointment-uuid>#booking-status`
 
-The customer enters **the same email used at booking** to view their status. The shorter `LYN-YYYYMMDD-HHMM-XXXX` reference is displayed, but is intentionally NOT accepted as authentication because the 4-digit hex suffix is too easy to guess.
+**Deploy this function separately from telegram-booking.** Telegram/Brevo customer emails may work while booking-status is not deployed.
 
-In Supabase Dashboard → Edge Functions → Deploy a new function → Via Editor:
-- Name `booking-status`
-- Paste the GitHub code in `supabase/functions/booking-status/index.ts`
-- Deploy, then set **Verify JWT OFF** for this function (it validates UUID and email internally).
-- Public frontend uses existing Supabase URL and anon key; NEVER put the service role key in the frontend.
-- Check a new test booking and verify the status link requires the correct booking email.
+- Supabase Dashboard → **Edge Functions → Deploy a new function → Via Editor**.
+- Function name (exact): `booking-status`.
+- Paste the full GitHub file `supabase/functions/booking-status/index.ts` and **Deploy**.
+- Set **Verify JWT OFF** for this public read-only function. It checks a private appointment UUID together with the matching customer's email. It does not allow public access to the appointments table.
+- If `booking-status` already exists, **replace and redeploy** its code; the latest version fixes Supabase SDK CORS preflight headers (`x-client-info`).
+- Refresh the deployed Cloudflare site and test using the emailed booking link plus the exact email used when booking.
 
-No SQL migration is required. Appointments remain protected by the existing database RLS.
+**What customers see:** The booking status page shows the familiar `LYN-YYYYMMDD-HHMM-XXXX` reference. The long UUID exists only as a private value in the email link, and is not displayed as a booking ID field. New Brevo emails contain a **Check booking status** button instead of a raw URL; the reference remains visible in the message.
+
+**Privacy:** The four-character reference suffix is too short to authenticate customers by itself. Keep the private emailed link plus booking-email verification. An appointment's visible reference may change on rescheduling (the private UUID link remains valid).
+
+An older email link generated before this change still works once booking-status is deployed; it simply lacks the visible reference until a successful lookup.
 
 ## 2. Email notifications (Brevo)
 
