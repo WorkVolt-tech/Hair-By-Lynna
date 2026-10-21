@@ -17,12 +17,12 @@ function shortRef(id: string, iso: string) {
 }
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed",{status:405});
-  if (!token || !chatId || !secret || !supabaseUrl || !serviceKey) return new Response("Not configured",{status:503});
+  if (!token || !chatId || !secret || !supabaseUrl || !serviceKey) { console.error("telegram-booking configuration missing:",{botToken:!!token,chatId:!!chatId,webhookSecret:!!secret,supabaseUrl:!!supabaseUrl,serviceRoleKey:!!serviceKey}); return new Response("Not configured",{status:503}); }
   const provided=req.headers.get("x-webhook-secret");
-  if (!provided || provided !== secret) return new Response("Unauthorized",{status:401});
+  if (!provided || provided !== secret) { console.error("telegram-booking: webhook secret header absent or incorrect"); return new Response("Unauthorized",{status:401}); }
   let payload: {type?:string;table?:string;schema?:string;record?:Record<string,unknown>;old_record?:Record<string,unknown>};
   try {payload=await req.json()} catch {return new Response("Invalid JSON",{status:400})}
-  if(payload.schema!=="public"||payload.table!=="appointments")return new Response("Ignored",{status:200});
+  if(payload.schema!=="public"||payload.table!=="appointments"){console.error("telegram-booking: unexpected webhook source",payload.schema,payload.table);return new Response("Ignored",{status:200});}
   const current=payload.record;
   if (!current || typeof current.id!=="string" || typeof current.starts_at!=="string" || typeof current.status!=="string")return new Response("Ignored",{status:200});
   const previous=payload.old_record||{};
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
   const {data,error}=await db.from("appointments")
     .select("id,customer_name,starts_at,ends_at,status,services(name_en)")
     .eq("id",current.id).single();
-  if(error||!data)return new Response("Appointment lookup failed",{status:500});
+  if(error||!data){console.error("telegram-booking: appointment lookup failed",{code:error?.code,message:error?.message});return new Response("Appointment lookup failed",{status:500});}
   const serviceName=Array.isArray(data.services)?data.services[0]?.name_en:(data.services as {name_en?:string}|null)?.name_en;
   const lines=[
     heading,
@@ -56,6 +56,6 @@ Deno.serve(async (req) => {
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({chat_id:chatId,text:lines.join("\n"),parse_mode:"HTML",disable_web_page_preview:true})
   });
-  if(!response.ok)return new Response("Telegram delivery failed",{status:502});
+  if(!response.ok){const body=await response.text(); console.error("telegram-booking: Telegram returned",response.status,body.slice(0,600));return new Response("Telegram delivery failed",{status:502});}
   return new Response("OK",{status:200});
 });
