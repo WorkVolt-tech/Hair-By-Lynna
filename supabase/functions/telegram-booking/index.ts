@@ -56,6 +56,13 @@ Deno.serve(async (req) => {
   const serviceName=Array.isArray(data.services)?data.services[0]?.name_en:(data.services as {name_en?:string}|null)?.name_en;
   const rescheduled=event==="rescheduled";
   const oldTime=data.reschedule_previous_starts_at?monTime(data.reschedule_previous_starts_at):null;
+  // Use the booked appointment's reserved duration, not the service's current
+  // duration setting: later service edits must not rewrite an existing estimate.
+  const reservedMinutes=Math.round((new Date(data.ends_at).getTime()-new Date(data.starts_at).getTime())/60000);
+  const durationEstimate=Number.isFinite(reservedMinutes)&&reservedMinutes>0
+    ? [Math.floor(reservedMinutes/60)?Math.floor(reservedMinutes/60)+" "+(Math.floor(reservedMinutes/60)===1?"hr":"hrs"):"",
+       reservedMinutes%60?(reservedMinutes%60)+" "+(reservedMinutes%60===1?"min":"mins"):""].filter(Boolean).join(" ")
+    : null;
   const lines=[
     heading,
     "",
@@ -93,6 +100,7 @@ Deno.serve(async (req) => {
       "Service: "+(serviceName??"Service"),
       ...(rescheduled&&oldTime?["Previous date & time: "+oldTime]:[]),
       (rescheduled?"New proposed date & time: ":"Date & time: ")+monTime(data.starts_at),
+      ...(durationEstimate?["Estimated duration: "+durationEstimate]:[]),
       "Status: "+data.status,
       ...(rescheduled?["Please open the booking-status link and confirm whether you can attend the new time."]:[]),
       ...(event==="reschedule_confirmed"?["Thank you for confirming your new appointment time."]:[]),
@@ -110,11 +118,13 @@ Deno.serve(async (req) => {
        <p style="line-height:1.8;">Service: <strong>${escapeHtml(serviceName??"Service")}</strong><br/>
        ${rescheduled&&oldTime?'Previous date &amp; time: <strong>'+escapeHtml(oldTime)+'</strong><br/>':''}
        ${rescheduled?'New proposed date &amp; time:':'Date &amp; time:'} <strong>${escapeHtml(monTime(data.starts_at))}</strong><br/>
+       ${durationEstimate?'Estimated duration: <strong>'+escapeHtml(durationEstimate)+'</strong><br/>':''}
        Status: <strong>${escapeHtml(data.status)}</strong><br/>
        Reference: <strong style="color:#f2b3d1;">${escapeHtml(reference)}</strong></p>
        ${rescheduled?'<p style="color:#ffd6e9;font-weight:bold;">Please confirm the new appointment time or let Lynna know if you cannot attend, using the link below.</p>':''}
        ${event==="reschedule_needs_contact"?'<p>Lynna has been informed that the proposed time does not work for you. She can follow up to arrange another time. Your booking remains active.</p>':''}
        <a href="${escapeHtml(privateLink)}" style="display:inline-block;background:#e99ec2;color:#21121e;padding:15px 22px;border-radius:7px;text-decoration:none;font-weight:bold;margin:12px 0;">${rescheduled?'Respond to new appointment time':'Check booking status'}</a>
+       ${durationEstimate?'<p style="font-size:12px;color:#d3aec0;line-height:1.5;">The duration is an estimate and may vary depending on your hair and styling needs.</p>':''}
        <p style="font-size:12px;color:#d3aec0;line-height:1.5;">Use the same email you booked with to view your status. Keep this link private.</p>
        <p style="margin-top:24px;">Hair by Lynna</p>
       </div></body></html>`;
