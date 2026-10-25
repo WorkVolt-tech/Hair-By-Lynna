@@ -373,3 +373,34 @@
   .admin-deposit-dialog-actions{flex-direction:column-reverse}
   .admin-page .admin-deposit-dialog .admin-deposit-dialog-actions button{flex:auto;width:100%}
 }
+
+/* All administrative browser confirm/prompt flows now use this Hair by Lynna dialog.
+   It shares the existing deposit modal styling and preserves typed deletion safeguards. */
+.admin-page .admin-action-dialog .admin-action-dialog-message{
+  color:#efd2e1;font-size:14px;line-height:1.75;margin:0 0 24px;
+}
+.admin-page .admin-action-dialog .admin-action-dialog-confirm-label{
+  display:flex;flex-direction:column;align-items:stretch;gap:9px;
+  padding:14px 15px;margin:0 0 22px;border:1px solid #a56c89;
+  border-radius:8px;background:#1b101a;color:#ffe8f2;
+  font-size:13px;line-height:1.6;
+}
+.admin-page .admin-action-dialog .admin-action-dialog-confirm-label code{
+  display:inline-block;color:#ffd7e9;background:#4b293e;font-size:13px;
+  font-weight:700;letter-spacing:.035em;padding:3px 6px;border-radius:4px;
+  user-select:all;overflow-wrap:anywhere;
+}
+.admin-page .admin-action-dialog .admin-action-dialog-confirm-label input{
+  display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;
+  padding:13px 12px;font-size:16px;border:1px solid #ae7896;
+  border-radius:6px;background:#0d090e;color:#ffe8f2;
+}
+.admin-page .admin-action-dialog .admin-action-dialog-confirm-label input:focus-visible{
+  outline:2px solid #efacce;outline-offset:2px;
+}
+.admin-page .admin-action-dialog .admin-deposit-dialog-actions button:disabled{
+  cursor:not-allowed;opacity:.45;filter:none;
+}
+@media(max-width:460px){
+  .admin-page .admin-action-dialog .admin-action-dialog-confirm-label{padding:12px 10px}
+}
