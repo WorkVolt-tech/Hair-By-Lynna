@@ -1,0 +1,71 @@
+/* Private business dashboard — Hair by Lynna black, blush and cream. */
+.lynna-statistics{--stats-border:#70475f;--stats-muted:#d4afc3;overflow:hidden;min-width:0}
+.lynna-statistics .stats-heading{display:flex;align-items:start;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.lynna-statistics .stats-heading h2{margin:7px 0 8px}
+.lynna-statistics .stats-kicker{display:inline-flex;align-items:center;gap:8px;color:#f3b1d1;letter-spacing:.16em;font-size:11px;font-weight:800}
+.admin-page .lynna-statistics .stats-refresh{display:inline-flex;align-items:center;gap:8px;min-height:43px;background:#321e2c;border:1px solid #956481;border-radius:7px;padding:10px 14px;color:#ffe6f1;cursor:pointer}
+.lynna-statistics .stats-period-controls{margin:24px 0 20px;display:flex;align-items:end;gap:9px;max-width:490px}
+.lynna-statistics .stats-period-controls>button{flex:0 0 44px;display:inline-flex;align-items:center;justify-content:center;min-height:47px;background:#2a1925;border:1px solid #986680;color:#ffe5ef;border-radius:7px;cursor:pointer}
+.lynna-statistics .stats-period-controls label{min-width:0;flex:1;display:flex;flex-direction:column;gap:7px;font-size:12px;color:#f0c9dc;font-weight:700}
+.lynna-statistics .stats-period-controls input{min-height:47px;min-width:0;padding:9px 12px;color:#fff1f8;background:#20131d;border:1px solid #986680;border-radius:7px;box-sizing:border-box;font:inherit;color-scheme:dark}
+.lynna-statistics button:focus-visible,.lynna-statistics input:focus-visible{outline:3px solid #ffc4e2;outline-offset:3px}
+.lynna-statistics .stats-status{font-size:13px;color:#ffdbec;padding:18px 0}
+.lynna-statistics .stats-error{padding:16px;background:#3a1823;border:1px solid #d46f88;color:#ffe3e8;border-radius:9px;font-size:13px;line-height:1.6}
+.lynna-statistics .stats-error button{margin-left:10px;color:#24141f;background:#f1a6ca;border:0;border-radius:5px;padding:7px 12px;cursor:pointer}
+.lynna-statistics .stats-month-title{color:#f3c4da;font-size:23px;font-family:'Cormorant Garamond',serif;font-weight:500;line-height:1.3;text-transform:capitalize;margin:22px 0 13px}
+.lynna-statistics .stats-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.lynna-statistics .stats-kpi{background:linear-gradient(155deg,#31202c,#1b121a);border:1px solid #785267;border-radius:10px;padding:18px 15px;min-width:0;overflow-wrap:anywhere;box-shadow:0 7px 18px #0002}
+.lynna-statistics .stats-kpi-completed{border-color:#8d6480}
+.lynna-statistics .stats-kpi-received{border-color:#748f77}
+.lynna-statistics .stats-kpi-outstanding{border-color:#c1946c}
+.lynna-statistics .stats-kpi-title{display:flex;gap:9px;align-items:center;font-weight:700;line-height:1.5;font-size:12px;color:#f8c6e0;min-height:40px}
+.lynna-statistics .stats-kpi-received .stats-kpi-title{color:#b7e3c5}
+.lynna-statistics .stats-kpi-outstanding .stats-kpi-title{color:#f5cfab}
+.lynna-statistics .stats-kpi>strong{display:block;font-size:clamp(22px,2.2vw,32px);font-weight:800;letter-spacing:-.04em;margin:15px 0 9px;color:#fff2fa;font-variant-numeric:tabular-nums}
+.lynna-statistics .stats-kpi p{color:#d8b9c7;margin:0;font-size:11px;line-height:1.65}
+.lynna-statistics .stats-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin:17px 0}
+.lynna-statistics .stats-subpanel{background:#1c121b;border:1px solid #65465a;border-radius:10px;padding:20px 18px;min-width:0}
+.lynna-statistics .stats-subpanel h3{display:flex;gap:9px;align-items:center;font-family:inherit;font-size:16px;font-weight:700;color:#f8c7df;margin:0 0 8px}
+.lynna-statistics .stats-panel-subtitle{font-size:12px;line-height:1.6;color:#d7b6c8;margin:0 0 17px}
+.lynna-statistics .stats-status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.lynna-statistics .stats-status-entry{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px;background:#2b1926;border-radius:6px;font-size:12px}
+.lynna-statistics .stats-status-entry span{color:#e7bfd3}
+.lynna-statistics .stats-status-entry strong{color:#ffe4f1;font-size:17px;font-variant-numeric:tabular-nums}
+.lynna-statistics .stats-panel-footnote{color:#c7a5b8;font-size:11px;line-height:1.75;margin:17px 0 0}
+.lynna-statistics .stats-payments-row{display:flex;justify-content:space-between;gap:10px;padding:13px 0;border-bottom:1px solid #493343;color:#f3d6e4;font-size:13px;line-height:1.55}
+.lynna-statistics .stats-payments-row strong{white-space:nowrap;color:#ffe6f1;font-variant-numeric:tabular-nums}
+.lynna-statistics .stats-payments-total{font-weight:800;color:#ffd1e5;border-bottom:0}
+.lynna-statistics .stats-payments-total strong{color:#c4eed1}
+.lynna-statistics .stats-full-panel{margin:17px 0}
+.lynna-statistics .stats-trends{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:25px}
+.lynna-statistics .stats-trend-chart{min-width:0;overflow:hidden}
+.lynna-statistics .stats-trend-chart>strong{display:block;font-size:12px;color:#f7d5e4;margin-bottom:14px}
+.lynna-statistics .stats-bars{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;align-items:end}
+.lynna-statistics .stats-bar-item{min-width:0;display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;color:#e7c5d7;font-size:10px;font-weight:700}
+.lynna-statistics .stats-bar-number{font-size:10px;line-height:1.4;overflow-wrap:anywhere;min-height:28px;display:flex;align-items:end;justify-content:center;font-variant-numeric:tabular-nums}
+.lynna-statistics .stats-bar-track{height:116px;width:100%;max-width:58px;display:flex;align-items:end;justify-content:center;border-radius:5px 5px 0 0;background:#30212d;overflow:hidden}
+.lynna-statistics .stats-bar-fill{width:100%;border-radius:5px 5px 0 0;min-height:0}
+.lynna-statistics .stats-bar-count{background:linear-gradient(#f5b6d6,#ad658c)}
+.lynna-statistics .stats-bar-money{background:linear-gradient(#bce6ca,#5c9572)}
+.lynna-statistics .stats-style-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,1fr);align-items:center;gap:18px;padding:12px 0;border-bottom:1px solid #392838}
+.lynna-statistics .stats-style-row:last-child{border-bottom:0}
+.lynna-statistics .stats-style-label{display:flex;flex-direction:column;gap:4px;min-width:0;overflow-wrap:anywhere}
+.lynna-statistics .stats-style-label strong{font-size:13px;color:#ffe1f0}
+.lynna-statistics .stats-style-label span{font-size:11px;color:#ceaec1}
+.lynna-statistics .stats-style-track{background:#342333;height:11px;border-radius:20px;overflow:hidden}
+.lynna-statistics .stats-style-track>div{height:100%;background:#e3a2c3;border-radius:20px}
+.lynna-statistics .stats-empty{color:#d8bbca;font-size:13px}
+.lynna-statistics .stats-disclaimer{color:#c5a9b9;border-top:1px solid #67465b;padding-top:18px;margin:23px 0 0;font-size:11px;line-height:1.85}
+@media(max-width:1050px){.lynna-statistics .stats-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){.lynna-statistics .stats-panels,.lynna-statistics .stats-trends{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:490px){
+  .lynna-statistics .stats-kpi-grid{gap:9px}
+  .lynna-statistics .stats-kpi{padding:13px 11px}
+  .lynna-statistics .stats-kpi-title{font-size:11px}
+  .lynna-statistics .stats-kpi>strong{font-size:clamp(19px,5.4vw,27px);letter-spacing:-.05em}
+  .lynna-statistics .stats-subpanel{padding:17px 12px}
+  .lynna-statistics .stats-bar-track{height:105px}
+  .lynna-statistics .stats-bars{gap:4px}
+  .lynna-statistics .stats-bar-number{font-size:9px}
+  .lynna-statistics .stats-style-row{grid-template-columns:minmax(0,1fr);gap:9px}
+}
