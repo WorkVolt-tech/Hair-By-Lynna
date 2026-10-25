@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from './lib/supabase.js';
-import { CalendarDays, ClipboardList, Scissors, LockKeyhole, LogOut, BadgeCheck, AlertCircle, X, ShieldAlert } from 'lucide-react';
+import { CalendarDays, ClipboardList, Scissors, LockKeyhole, LogOut, BadgeCheck, AlertCircle, X, ShieldAlert, Archive, CheckCircle2, Wallet } from 'lucide-react';
 import './admin.css';
 import { bookingReference } from './lib/bookingReference.js';
 import { durationParts, durationTotal, formatDuration } from './lib/duration.js';
@@ -18,6 +18,10 @@ export default function Admin(){
  const [loading,setLoading]=useState(true), [busy,setBusy]=useState(false),[error,setError]=useState('');
  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[tab,setTab]=useState('availability');
  const [availability,setAvailability]=useState([]),[services,setServices]=useState([]),[appointments,setAppointments]=useState([]);
+ const [appointmentView,setAppointmentView]=useState('active');
+ const [historyAppointments,setHistoryAppointments]=useState([]);
+ const [historyLoading,setHistoryLoading]=useState(false),[historyHasMore,setHistoryHasMore]=useState(true);
+ const historyRequestRef=useRef(false);
  const [oneClientPerDay,setOneClientPerDay]=useState(null);const [day,setDay]=useState(initialDate()),[start,setStart]=useState('09:00'),[end,setEnd]=useState('17:00');
  const [nameEn,setNameEn]=useState(''),[nameFr,setNameFr]=useState(''),[descriptionEn,setDescriptionEn]=useState(''),[descriptionFr,setDescriptionFr]=useState(''),[durationHours,setDurationHours]=useState('3'),[durationMinutes,setDurationMinutes]=useState('0'),[price,setPrice]=useState('0');
  const [editingAppointment,setEditingAppointment]=useState(null),[appointmentDraft,setAppointmentDraft]=useState(null),[appointmentError,setAppointmentError]=useState('');
@@ -82,11 +86,30 @@ export default function Admin(){
   const [a,s,p]=await Promise.all([
    supabase.from('availability').select('*').order('date').order('start_time'),
    supabase.from('services').select('*').order('sort_order'),
-   supabase.from('appointments').select('*, services(name_en,name_fr)').order('starts_at',{ascending:false}).limit(100)
+   supabase.from('appointments').select('*, services(name_en,name_fr,price_cents)').in('status',['pending','approved']).order('starts_at',{ascending:true}).limit(300)
   ]);
   const e=a.error||s.error||p.error;if(e)setError(e.message);
   else{setAvailability(a.data||[]);setServices(s.data||[]);setAppointments(p.data||[])}
  }
+ // Archive records remain in appointments; fetch only a page of history at a time.
+ async function loadHistory(reset=false){
+  if(!supabase||!role||historyRequestRef.current||(!reset&&!historyHasMore))return;
+  historyRequestRef.current=true;setHistoryLoading(true);
+  const start=reset?0:historyAppointments.length;
+  try{
+   const {data,error:historyError}=await supabase.from('appointments')
+    .select('*, services(name_en,name_fr,price_cents)')
+    .in('status',['completed','declined','cancelled'])
+    .order('starts_at',{ascending:false})
+    .range(start,start+24);
+   if(historyError)throw historyError;
+   const rows=data||[];
+   setHistoryAppointments(prev=>reset?rows:[...prev,...rows.filter(a=>!prev.some(b=>b.id===a.id))]);
+   setHistoryHasMore(rows.length===25);
+  }catch(ex){setError(ex.message||(lang==='fr'?'Impossible de charger les archives.':'Unable to load history.'))}
+  finally{historyRequestRef.current=false;setHistoryLoading(false)}
+ }
+ useEffect(()=>{if(role&&tab==='appointments'&&appointmentView==='history')loadHistory(true)},[role,tab,appointmentView]);
  useEffect(()=>{if(role){reload();supabase.rpc('get_one_client_per_day').then(({data,error})=>{if(!error)setOneClientPerDay(Boolean(data));else setError(error.message)})}},[role]);
  async function changeDailyLimit(enabled){
   if(busy||role!=='owner')return;
@@ -108,8 +131,9 @@ export default function Admin(){
    do{
     queued=false;
     const {data,error}=await supabase.from('appointments')
-      .select('*, services(name_en,name_fr)')
-      .order('starts_at',{ascending:false}).limit(100);
+      .select('*, services(name_en,name_fr,price_cents)')
+      .in('status',['pending','approved'])
+      .order('starts_at',{ascending:true}).limit(300);
     if(!alive)break;
     if(!error)setAppointments(data||[]);
    }while(alive&&queued);
@@ -372,6 +396,41 @@ export default function Admin(){
  function cancelServiceDrag(){draggingService.current=null;setDragOverService(null)}
  async function toggleService(s){setBusy(true);setError('');const {error}=await supabase.from('services').update({active:!s.active}).eq('id',s.id);
   if(error)setError(error.message);else await reload();setBusy(false);
+ }
+ const asMoney=(cents)=>new Intl.NumberFormat(lang==='fr'?'fr-CA':'en-CA',{style:'currency',currency:'CAD'}).format((cents||0)/100);
+ const servicePrice=(a)=>a.service_price_cents??a.services?.price_cents??0;
+ const confirmedDeposit=(a)=>a.deposit_received_at?(a.deposit_amount_cents??2000):0;
+ const finalPaid=(a)=>a.final_payment_received_at?(a.final_payment_amount_cents??0):0;
+ const remainingCents=(a)=>Math.max(0,servicePrice(a)-confirmedDeposit(a)-finalPaid(a));
+ const displayedAppointments=appointmentView==='history'?historyAppointments:appointments;
+ async function completeAppointment(a){
+  if(busy||role!=='owner'||a.status!=='approved'||new Date(a.ends_at).getTime()>Date.now())return;
+  const accepted=await confirmAction(
+   lang==='fr'?'Le rendez-vous est-il réellement terminé? Le marquer comme terminé le déplacera dans les archives, sans supprimer le dossier du client.':'Has this service actually been completed? Marking it completed will move it to History without deleting the customer record.',
+   {title:lang==='fr'?'Terminer le rendez-vous':'Complete appointment',
+    confirmLabel:lang==='fr'?'Oui, terminé':'Yes, completed'});
+  if(!accepted)return;
+  setBusy(true);setError('');
+  const {error:saveError}=await supabase.rpc('owner_complete_appointment',{p_appointment_id:a.id});
+  if(saveError)setError(saveError.message);else await reload();
+  setBusy(false);
+ }
+ async function setFinalPayment(a,received){
+  if(busy||role!=='owner'||a.status!=='completed')return;
+  const amount=received?asMoney(remainingCents(a)):asMoney(finalPaid(a));
+  const confirmed=await confirmAction(
+    received
+     ?(lang==='fr'?`Confirmez uniquement si vous avez reçu le paiement final de ${amount}. Aucun paiement n'est débité automatiquement.`:`Only confirm once you've actually received the final payment of ${amount}. No payment is charged automatically.`)
+     :(lang==='fr'?`Annuler l'enregistrement du paiement final de ${amount}? Ceci ne rembourse pas automatiquement le client.`:`Remove the recorded final payment of ${amount}? This does not automatically refund the customer.`),
+    {title:received?(lang==='fr'?'Paiement final reçu':'Final payment received'):(lang==='fr'?'Corriger le paiement':'Correct payment record'),
+     confirmLabel:received?(lang==='fr'?'Oui, paiement reçu':'Yes, payment received'):(lang==='fr'?'Retirer la confirmation':'Remove confirmation'),
+     danger:!received}
+  );
+  if(!confirmed)return;
+  setBusy(true);setError('');
+  const {error:saveError}=await supabase.rpc('owner_set_final_payment_received',{p_appointment_id:a.id,p_received:received});
+  if(saveError)setError(saveError.message);else{await reload();if(appointmentView==='history')await loadHistory(true)}
+  setBusy(false);
  }
  return <div className="admin-page"><header className="admin-bar"><a href="/" className="admin-logo"><img src="/images/hair-by-lynna-logo.webp" alt="Hair by Lynna" width="140" height="48"/></a><div className="admin-actions"><button type="button" onClick={()=>setLang(lang==='fr'?'en':'fr')}>{lang==='fr'?'EN':'FR'}</button><a href="/">{t.back}</a>{session&&<button type="button" onClick={()=>supabase.auth.signOut()}><LogOut size={15}/>{t.signOut}</button>}</div></header><main className="admin-main"><h1>{t.title}</h1>{!supabase?<div className="admin-panel">{t.missing}</div>:loading?<p>{t.loading}</p>:!session?<form className="admin-panel admin-login" onSubmit={login}><LockKeyhole size={27} color="#eeb1d0"/><h2>{t.signIn}</h2><label>{t.email}<input type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)}/></label><label>{t.password}<input type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></label><button disabled={busy} type="submit">{t.enter}</button></form>:!role?<div className="admin-panel">{t.noAccess}</div>:<><p className="admin-muted">{session.user.email} · {role==='owner'?'Owner':'Tester'}</p><div className="admin-tabs">{[['availability',CalendarDays],['appointments',ClipboardList],['services',Scissors]].map(([item,Icon])=><button type="button" className={tab===item?'current':''} onClick={()=>setTab(item)} key={item}><Icon size={18}/>{t[item]}</button>)}</div><p className="admin-muted">{t.review}</p>{tab==='availability'&&<section className="admin-panel"><h2>{t.availability}</h2><div className="daily-limit-setting"><label className="daily-limit-label"><input type="checkbox" checked={oneClientPerDay===true} disabled={busy||role!=='owner'||oneClientPerDay===null} onChange={e=>changeDailyLimit(e.target.checked)}/><span><strong>{lang==='fr'?'Un seul client par jour':'One client per day'}</strong><small>{lang==='fr'?'Activé : un rendez-vous en attente ou approuvé bloque les autres réservations de cette journée. Désactivé : plusieurs clients sont possibles si les heures ne se chevauchent pas.':'On: one pending or approved booking fills the day. Off: multiple clients can book non-overlapping times.'}</small></span></label>{role!=='owner'&&<p className="admin-muted">{lang==='fr'?'Seule la propriétaire peut modifier ce réglage.':'Only the owner can change this setting.'}</p>}</div><p className="admin-muted">{t.note}</p><div className="admin-danger-zone"><strong>{lang==='fr'?'Réinitialiser toute la planification':'Reset all scheduling'}</strong><p className="admin-muted">{lang==='fr'?'Supprime définitivement TOUTES les disponibilités et TOUS les rendez-vous.':'Permanently deletes ALL availability AND ALL appointments.'}</p><button type="button" className="admin-danger-button" disabled={busy} onClick={clearAllSchedules}>{lang==='fr'?'Tout effacer':'Clear all schedules and appointments'}</button></div><AvailabilityCalendar lang={lang} day={day} setDay={setDay} availability={availability} onMove={moveSlot} busy={busy}/><AvailabilityManager lang={lang} availability={availability} day={day} setDay={setDay} start={start} setStart={setStart} end={end} setEnd={setEnd} busy={busy} onAdd={addSlot} onDelete={deleteSlot} onUpdate={updateSlot} onBulk={bulkSave}/> </section>}{tab==='services'&&<section className="admin-panel"><h2>{t.services}</h2><form className="admin-form service-create-form" onSubmit={addService}><label>{t.nameEn}<input required value={nameEn} onChange={e=>setNameEn(e.target.value)}/></label><label>{t.nameFr}<input required value={nameFr} onChange={e=>setNameFr(e.target.value)}/></label>
  <label className="service-description-field">{lang==='fr'?'Description (anglais)':'Description (English)'}<textarea rows={3} maxLength={1000} value={descriptionEn} onChange={e=>setDescriptionEn(e.target.value)} placeholder={lang==='fr'?'Décrivez le service en anglais':'Describe this service in English'}/></label>
