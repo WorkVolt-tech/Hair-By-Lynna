@@ -114,7 +114,7 @@ export default function CustomerBooking({language}){
   {success&&<div className="booking-summary" role="status"><strong>{fr?'Demande reçue':'Request received'}</strong><p>{fr?"Votre demande est enregistrée et en attente d'approbation par Lynna.":"Your appointment request is saved and awaiting Lynna’s approval."}</p><p className="booking-notice">{fr?"Conservez votre référence et votre lien privé de réservation.":"Save your reference and private booking link."}</p><div className="booking-friendly-reference"><span>{fr?'Votre référence':'Your reference'}</span><strong>{successRef}</strong></div><div className="booking-deposit-next-step">
  <strong>{fr?'Acompte de 20 $ CAD':'$20 CAD deposit'}</strong>
  <p>{fr?'Pour réserver votre rendez-vous, envoyez votre acompte par Virement Interac à :':'To secure your appointment, send your deposit by Interac e-Transfer to:'}</p>
- <a href="mailto:xhair.dreams@gmail.com">xhair.dreams@gmail.com</a>
+ <a href="mailto:Magdalynnajoseph@gmail.com">Magdalynnajoseph@gmail.com</a>
  <p>{fr?'Inscrivez votre référence de réservation dans le message du virement. Lynna confirmera la réception après avoir vérifié son compte. Si vous avez déjà envoyé le virement, ne l’envoyez pas de nouveau.':'Include your booking reference in the transfer message. Lynna will confirm after checking her account. If you have already sent it, do not send another transfer.'}</p>
 </div><p className="booking-notice">{fr?"Conservez ce lien privé pour consulter le statut de votre réservation.":"Save this private link to check your booking status."}</p><a href={"/?booking="+encodeURIComponent(success.id)+"&ref="+encodeURIComponent(successRef)+"#booking-status"}>{fr?"Consulter le statut":"Check booking status"}</a></div>}
   </>}
