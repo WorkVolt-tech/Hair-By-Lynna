@@ -2,7 +2,7 @@
 
 The public policy already states a **$20 CAD non-refundable deposit**, deducted from the final bill. This implementation tracks whether **Lynna has manually verified** receipt of that deposit. It does not receive or process e-Transfers, access bank accounts, or automatically mark an appointment approved.
 
-**Payee shown to customers:** `xhair.dreams@gmail.com` (the existing stylist contact email). Lynna should verify this is the actual Interac e-Transfer receiving address **before accepting real payments**.
+**Interac e-Transfer receiving email shown to customers:** `Magdalynnajoseph@gmail.com` (Lynna's requested personal payment email). This is separate from the site's general contact and Brevo reply-to address. Lynna should confirm this address is registered to receive Interac e-Transfers before accepting real payments.
 
 ## Activate (Supabase Dashboard — no terminal)
 
