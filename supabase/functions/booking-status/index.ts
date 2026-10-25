@@ -93,7 +93,7 @@ Deno.serve(async req=>{
   if(action!=="check"&&action!=="respond_reschedule")return json({error:"Invalid request"},400);
   const id=typeof body.id==="string"?body.id.trim():"";
   if(!idPattern.test(id))return json({error:"Open the private booking link from your email."},400);
-  const fields="id,customer_email,starts_at,ends_at,status,services(name_en,name_fr),reschedule_response,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_revision";
+  const fields="id,customer_email,starts_at,ends_at,status,services(name_en,name_fr),reschedule_response,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_revision,deposit_amount_cents,deposit_received_at";
   const {data,error}=await db.from("appointments").select(fields).eq("id",id).maybeSingle();
   if(error){console.error("booking-status: appointment lookup failed",error.code);return json({error:"Booking status temporarily unavailable."},503)}
   if(!data||data.customer_email?.trim().toLowerCase()!==email)
@@ -125,5 +125,7 @@ Deno.serve(async req=>{
     reschedule_response:appointment.reschedule_response,
     reschedule_previous_starts_at:appointment.reschedule_previous_starts_at,
     reschedule_previous_ends_at:appointment.reschedule_previous_ends_at,
-    reschedule_revision:appointment.reschedule_revision});
+    reschedule_revision:appointment.reschedule_revision,
+    deposit_amount_cents:appointment.deposit_amount_cents,
+    deposit_received_at:appointment.deposit_received_at});
 });
