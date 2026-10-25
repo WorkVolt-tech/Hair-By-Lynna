@@ -69,3 +69,48 @@
   .lynna-statistics .stats-bar-number{font-size:9px}
   .lynna-statistics .stats-style-row{grid-template-columns:minmax(0,1fr);gap:9px}
 }
+
+/* Three private CSV exports. Buttons don't change dashboard tabs or scroll. */
+.lynna-statistics .stats-export{
+  margin:4px 0 23px;padding:17px 17px 9px;
+  background:linear-gradient(145deg,#32202d,#20121c);
+  border:1px solid #9a6380;border-radius:10px;
+}
+.lynna-statistics .stats-export-heading h3{
+  display:flex;align-items:center;gap:9px;
+  font-size:16px;font-weight:750;color:#f7c6df;margin:0 0 5px;
+}
+.lynna-statistics .stats-export-heading p{
+  color:#dbb9cc;font-size:12px;line-height:1.6;margin:0 0 13px;
+}
+.lynna-statistics .stats-export-buttons{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;
+}
+.admin-page .lynna-statistics .stats-export-buttons button{
+  display:inline-flex;justify-content:center;align-items:center;gap:7px;
+  text-align:center;min-height:48px;min-width:0;
+  padding:12px 10px;border-radius:7px;
+  color:#2b1421;background:#edadd0;
+  border:1px solid #f9d0e4;
+  font-size:12px;font-weight:750;line-height:1.4;
+  cursor:pointer;
+}
+.admin-page .lynna-statistics .stats-export-buttons button:hover:not(:disabled){
+  background:#fac7df;
+}
+.admin-page .lynna-statistics .stats-export-buttons button:disabled{
+  opacity:.6;cursor:progress;
+}
+.lynna-statistics .stats-export-privacy{
+  color:#d1adbf;font-size:11px;line-height:1.7;margin:13px 0 0;
+}
+.lynna-statistics .stats-export-feedback{
+  min-height:27px;padding:7px 0 1px;font-size:12px;line-height:1.55;
+}
+.lynna-statistics .stats-export-error{color:#ffd0d6}
+.lynna-statistics .stats-export-success{color:#c5f0d1}
+@media(max-width:780px){
+  .lynna-statistics .stats-export-buttons{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
