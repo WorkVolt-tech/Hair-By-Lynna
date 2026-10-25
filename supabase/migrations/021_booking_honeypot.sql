@@ -62,6 +62,9 @@ grant execute on function public.request_appointment(
   uuid,date,time,text,text,text,boolean,text
 ) to anon,authenticated;
 
+-- Tell PostgREST to pick up the new public RPC signature immediately.
+notify pgrst, 'reload schema';
+
 commit;
 
 -- Optional permission check in SQL Editor:
