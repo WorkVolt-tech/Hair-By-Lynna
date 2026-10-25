@@ -211,3 +211,12 @@
   padding:14px;margin-top:16px;background:#332132;color:#f6c8df;
   border:1px solid #af7291;border-radius:8px;text-align:center;
 }
+
+/* Deposit state is visible only in the email-verified booking status result. */
+.book .booking-status-panel .booking-deposit-status{margin:18px 0 8px;padding:18px 16px;border:1px solid #976481;border-radius:9px;background:#301d2d;text-align:left;color:#fce3ef}
+.book .booking-status-panel .booking-deposit-status strong{display:block;margin:7px 0 10px;font-size:16px;line-height:1.5;color:#f6c6dc}
+.book .booking-status-panel .booking-deposit-status p{margin:9px 0;font-size:12px;line-height:1.6;color:#f4d5e4}
+.book .booking-status-panel .booking-deposit-status.booking-deposit-paid{border-color:#93b49d;background:#1d3025}
+.book .booking-status-panel .booking-deposit-status.booking-deposit-paid strong{color:#c9f5d7}
+.book .booking-status-panel .booking-deposit-email{display:inline-block;color:#ffd0e7;text-decoration:underline;overflow-wrap:anywhere;font-weight:700;font-size:14px;margin:2px 0 7px}
+.book .booking-status-panel .booking-status-estimate{font-size:13px;color:#e9c4d7}
