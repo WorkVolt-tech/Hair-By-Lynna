@@ -17,9 +17,20 @@ export default function Admin(){
  const [lang,setLang]=useState(()=>{try{return localStorage.getItem('lynna-language')==='fr'?'fr':'en'}catch{return 'en'}});
  const t=copy[lang], [session,setSession]=useState(null), [role,setRole]=useState(null);
  const [loading,setLoading]=useState(true), [busy,setBusy]=useState(false),[error,setError]=useState('');
- const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[tab,setTab]=useState('availability');
+ const [email,setEmail]=useState(''),[password,setPassword]=useState('');
+ // Remember the admin tab across refreshes. Previously reload returned everyone
+ // to Availability, even if they were viewing Statistics or Appointments.
+ const [tab,setTab]=useState(()=>{
+   try{
+     const saved=sessionStorage.getItem('lynna-admin-tab');
+     return ['availability','appointments','services','statistics'].includes(saved)?saved:'availability';
+   }catch{return 'availability'}
+ });
  const [availability,setAvailability]=useState([]),[services,setServices]=useState([]),[appointments,setAppointments]=useState([]);
- const [appointmentView,setAppointmentView]=useState('active');
+ const [appointmentView,setAppointmentView]=useState(()=>{
+   try{return sessionStorage.getItem('lynna-admin-appointment-view')==='history'?'history':'active'}
+   catch{return 'active'}
+ });
  const [historyAppointments,setHistoryAppointments]=useState([]);
  const [historyLoading,setHistoryLoading]=useState(false),[historyHasMore,setHistoryHasMore]=useState(true);
  const historyRequestRef=useRef(false);
@@ -34,6 +45,10 @@ export default function Admin(){
  const [dragOverService,setDragOverService]=useState(null);
  const [editingService,setEditingService]=useState(null),[serviceDraft,setServiceDraft]=useState(null),[serviceMessage,setServiceMessage]=useState('');
  useEffect(()=>{document.documentElement.lang=lang;try{localStorage.setItem('lynna-language',lang)}catch{}},[lang]);
+ useEffect(()=>{try{sessionStorage.setItem('lynna-admin-tab',tab)}catch{}},[tab]);
+ useEffect(()=>{try{sessionStorage.setItem('lynna-admin-appointment-view',appointmentView)}catch{}},[appointmentView]);
+ // Stats are owner-only: never leave a tester on a remembered private tab.
+ useEffect(()=>{if(role&&role!=='owner'&&tab==='statistics')setTab('availability')},[role,tab]);
  useEffect(()=>{
    const node=depositDialogRef.current;
    if(!node)return;
