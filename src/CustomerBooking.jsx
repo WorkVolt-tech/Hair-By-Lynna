@@ -21,6 +21,10 @@ export default function CustomerBooking({language}){
  const [calendarAvailability,setCalendarAvailability]=useState({key:'',days:[]});
  const [calendarBusy,setCalendarBusy]=useState(false),[calendarError,setCalendarError]=useState('');
  const [calendarRefresh,setCalendarRefresh]=useState(0);
+ // The existing per-day slot RPC is a compatible fallback until migration 017
+ // is installed; keep windows current without restarting the calendar every 5s.
+ const publishedWindowsRef=React.useRef(windows);
+ publishedWindowsRef.current=windows;
  useEffect(()=>{
   if(!supabase)return;
   const channel=supabase.channel('lynna-public-booking-pulse')
@@ -60,18 +64,38 @@ export default function CustomerBooking({language}){
  // dates that may already be occupied. Existing slot RPC still validates booking.
  useEffect(()=>{
   if(!supabase||!serviceId){setCalendarBusy(false);setCalendarError('');return}
-  let live=true,requesting=false;
-  async function refreshCalendar(){
-   if(!live||requesting)return;
+  let live=true,requesting=false,legacyNextCheck=0;
+  async function refreshCalendar(force=false){
+   if(!live||requesting||(!force&&Date.now()<legacyNextCheck))return;
    requesting=true;setCalendarBusy(true);
    try{
     const {data,error:rpcError}=await supabase.rpc('public_booking_calendar_days',{
      p_service_id:serviceId,p_month:month+'-01'
     });
+    let dates;
+    if(rpcError){
+     // Migration 017 may not have been run yet. Reuse the server's already
+     // installed per-day RPC; it respects one-client-per-day and conflicts.
+     // Throttle this temporary multi-request fallback to once per minute.
+     if(rpcError.code!=='PGRST202'&&!/could not find the function/i.test(rpcError.message||''))throw rpcError;
+     const days=[...new Set(publishedWindowsRef.current
+       .filter(w=>w.day?.slice(0,7)===month&&w.day>=todayMontreal)
+       .map(w=>w.day))];
+     const checked=await Promise.all(days.map(async d=>{
+      const {data:slots,error:slotError}=await supabase.rpc('public_booking_slots',{
+       p_service_id:serviceId,p_day:d
+      });
+      if(slotError)throw slotError;
+      return slots?.length?d:null;
+     }));
+     dates=checked.filter(Boolean);
+     legacyNextCheck=Date.now()+60000;
+    }else{
+     dates=(data||[]).map(x=>x.day).filter(Boolean);
+     legacyNextCheck=0;
+    }
     if(!live)return;
-    if(rpcError)throw rpcError;
-    const dates=[...new Set((data||[]).map(x=>x.day).filter(Boolean))];
-    setCalendarAvailability({key:serviceId+'|'+month,days:dates});
+    setCalendarAvailability({key:serviceId+'|'+month,days:[...new Set(dates)]});
     setCalendarError('');
    }catch(err){
     if(live)setCalendarError(language==='fr'
@@ -79,8 +103,8 @@ export default function CustomerBooking({language}){
       :'Unable to verify available dates right now. Please try again.');
    }finally{requesting=false;if(live)setCalendarBusy(false)}
   }
-  function onReturn(){if(document.visibilityState==='visible')refreshCalendar()}
-  refreshCalendar();
+  function onReturn(){if(document.visibilityState==='visible')refreshCalendar(true)}
+  refreshCalendar(true);
   window.addEventListener('focus',onReturn);
   document.addEventListener('visibilitychange',onReturn);
   const timer=window.setInterval(()=>{
@@ -168,7 +192,7 @@ export default function CustomerBooking({language}){
     const published=windows.some(w=>w.day===d);
     const unavailable=calendarReady&&published&&!available&&d>=todayMontreal;
     const label=available?(fr?'Disponible':'Available')
-      :unavailable?(fr?'Complet — aucune heure réservable':'Fully booked — no available times')
+      :unavailable?(fr?'Aucun créneau réservable':'No bookable times')
       :(fr?'Indisponible':'Unavailable');
     return <button type="button" key={d}
       className={[day===d?'selected':'',unavailable?'booking-day-full':''].filter(Boolean).join(' ')}
