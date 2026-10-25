@@ -263,3 +263,13 @@
 .admin-page .service-duration-fields label{width:100%;min-width:0}
 .admin-page .service-duration-fields input{width:100%;max-width:100%;min-width:0;box-sizing:border-box;font-size:16px}
 @media(max-width:370px){.admin-page .service-duration-fields{gap:8px}}
+
+/* Owner-verified $20 Interac deposit, shown on each booking row. */
+.appointment-deposit{max-width:100%;margin:12px 0;padding:12px 14px;border:1px solid #91627e;border-radius:8px;background:#251722;color:#fbe0ed}
+.appointment-deposit strong{display:block;font-size:13px;line-height:1.6}
+.appointment-deposit p{margin:6px 0 10px;font-size:12px;line-height:1.5;color:#e7c3d5}
+.appointment-deposit.deposit-is-received{border-color:#93b69a;background:#1b2b21}
+.appointment-deposit.deposit-is-received strong{color:#d8f5df}
+.admin-item .appointment-deposit button{width:auto;max-width:100%;min-height:42px;padding:10px 14px;white-space:normal;border:1px solid #e6a5c5;border-radius:6px;background:#e6a5c5;color:#1c0d16;font-weight:700}
+.admin-item .appointment-deposit.deposit-is-received button{background:transparent;color:#e9c8d7;border-color:#997086}
+@media(max-width:600px){.admin-item .appointment-deposit{width:100%;box-sizing:border-box}.admin-item .appointment-deposit button{width:100%}}
