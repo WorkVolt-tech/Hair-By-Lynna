@@ -182,7 +182,7 @@ export default function Admin(){
   setBusy(false);
  }
  async function setDepositReceived(a, received){
-  if(busy)return;
+  if(busy||role!=='owner')return;
   const amount=new Intl.NumberFormat(lang==='fr'?'fr-CA':'en-CA',{style:'currency',currency:'CAD'})
     .format((a.deposit_amount_cents??2000)/100);
   const message=received
@@ -321,9 +321,9 @@ export default function Admin(){
  <div className={'appointment-deposit '+(a.deposit_received_at?'deposit-is-received':'deposit-is-pending')}>
   <strong>{lang==='fr'?'Acompte':'Deposit'}: {new Intl.NumberFormat(lang==='fr'?'fr-CA':'en-CA',{style:'currency',currency:'CAD'}).format((a.deposit_amount_cents??2000)/100)} — {a.deposit_received_at?(lang==='fr'?'Reçu':'Received'):(lang==='fr'?'Non reçu':'Not received')}</strong>
   {a.deposit_received_at?<p>{lang==='fr'?'Confirmé le':'Confirmed on'} {new Date(a.deposit_received_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto',dateStyle:'medium',timeStyle:'short'})}</p>:<p>{lang==='fr'?'Vérifiez le virement Interac avant de confirmer.':'Verify the Interac e-Transfer in the bank before confirming.'}</p>}
-  <button type="button" disabled={busy} onClick={()=>setDepositReceived(a,!a.deposit_received_at)}>
+  {role==='owner'&&  <button type="button" disabled={busy} onClick={()=>setDepositReceived(a,!a.deposit_received_at)}>
    {a.deposit_received_at?(lang==='fr'?'Annuler la confirmation':'Undo deposit confirmation'):(lang==='fr'?'Confirmer la réception de l’acompte':'Confirm deposit received')}
-  </button>
+  </button>}
  </div>{a.status==='approved'&&a.reschedule_response&&<div className={'appointment-reschedule-review '+(a.reschedule_response==='needs_contact'?'needs-contact':'')}>
  <strong>{a.reschedule_response==='pending'?(lang==='fr'?'Horaire modifié — confirmation du client en attente':'Time changed — awaiting customer confirmation')
   :a.reschedule_response==='confirmed'?(lang==='fr'?'Nouvel horaire confirmé par le client':'Customer confirmed the new time')
