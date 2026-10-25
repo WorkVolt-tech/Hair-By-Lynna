@@ -404,3 +404,62 @@
 @media(max-width:460px){
   .admin-page .admin-action-dialog .admin-action-dialog-confirm-label{padding:12px 10px}
 }
+
+/* Completed appointments & paginated archive – consistent with Hair by Lynna. */
+.admin-page .appointment-view-switch{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0}
+.admin-page .appointment-view-switch button{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  min-height:44px;flex:1 1 155px;padding:10px 15px;border:1px solid #80576f;
+  border-radius:8px;background:#221421;color:#ffe3ef;font-weight:700;cursor:pointer
+}
+.admin-page .appointment-view-switch button.selected{background:#e5a4c6;color:#24101c;border-color:#f6c5dc}
+.admin-page .appointment-view-switch button:focus-visible,
+.admin-page .appointment-history-pagination button:focus-visible,
+.admin-page .appointment-payment button:focus-visible,
+.admin-page .appointment-complete-button:focus-visible{outline:3px solid #ffc4e2;outline-offset:3px}
+.admin-page .appointment-record{align-items:stretch;background:#150d14}
+.admin-page .appointment-record>div{width:100%;min-width:0;overflow-wrap:anywhere}
+.admin-page .appointment-record-completed{border-color:#5f9170}
+.admin-page .appointment-record-status{display:inline-block;font-size:12px;font-weight:700;color:#f6d1e1}
+.admin-page .appointment-record-status.status-completed{color:#a4eabb}
+.admin-page .appointment-record-status.status-approved{color:#bce7ff}
+.admin-page .appointment-record-status.status-declined,
+.admin-page .appointment-record-status.status-cancelled{color:#ffb9c3}
+.admin-page .appointment-record .appointment-payment{
+  margin:12px 0;padding:14px 15px;border:1px solid #80516d;
+  border-radius:9px;background:#241521;color:#fae4ed;
+}
+.admin-page .appointment-payment .appointment-payment-heading{
+  display:flex;align-items:center;gap:8px;margin-bottom:10px;color:#ffc6df
+}
+.admin-page .appointment-payment-line{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:5px 0;font-size:13px;line-height:1.55}
+.admin-page .appointment-payment-line>span{color:#edc6d9}
+.admin-page .appointment-payment-line>strong{color:#ffdfeb;white-space:nowrap;font-variant-numeric:tabular-nums}
+.admin-page .appointment-payment-due{border-top:1px solid #81556d;margin-top:8px;padding-top:11px;font-size:15px}
+.admin-page .appointment-payment-due>strong{color:#ffbdda}
+.admin-page .appointment-payment .appointment-payment-state{margin:11px 0;font-size:12px;color:#f6d0e3}
+.admin-page .appointment-record .appointment-payment button{
+  min-height:43px;max-width:100%;white-space:normal;cursor:pointer;font-weight:700;
+  padding:10px 14px;border-radius:6px;margin-top:9px;
+}
+.admin-page .appointment-record .appointment-payment .appointment-payment-confirm{
+  border:1px solid #6fd99e;background:#22553a;color:#ecfff1
+}
+.admin-page .appointment-record .appointment-payment .appointment-payment-undo{
+  border:1px solid #e5a4c6;background:transparent;color:#f9c8df
+}
+.admin-page .appointment-record .appointment-actions .appointment-complete-button{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border:1px solid #73cb94;background:#205e3c;color:#f2fff6;font-weight:700
+}
+.admin-page .appointment-history-pagination{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 0}
+.admin-page .appointment-history-pagination button{
+  min-height:43px;padding:10px 16px;background:#30202e;color:#ffe5f1;
+  border:1px solid #a87591;border-radius:7px;cursor:pointer
+}
+@media(max-width:600px){
+  .admin-page .appointment-view-switch button{flex:1 1 130px}
+  .admin-page .appointment-payment-line{font-size:12px}
+  .admin-page .appointment-record .appointment-payment button{width:100%}
+  .admin-page .appointment-history-pagination button{flex:1 1 150px}
+}
