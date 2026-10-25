@@ -162,7 +162,7 @@ Deno.serve(async (request) => {
       if(lookupError)throw Error("appointment lookup failed: "+(lookupError.code||"unknown"));
       const a = record as Appointment | null;
       const stillEligible = Boolean(a && a.status==="approved" &&
-        a.starts_at===reminder.starts_at &&
+        new Date(a.starts_at).getTime()===new Date(reminder.starts_at).getTime() &&
         (a.reschedule_response===null||a.reschedule_response==="confirmed") &&
         a.customer_email?.trim());
       if(!stillEligible){
