@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
   const depositPaid=Boolean(data.deposit_received_at);
   const depositAmount=new Intl.NumberFormat("en-CA",{style:"currency",currency:"CAD"}).format((data.deposit_amount_cents??2000)/100);
   const depositLabel=depositPaid?"Received":"Not received";
-  const transferEmail="xhair.dreams@gmail.com";
+  const transferEmail="Magdalynnajoseph@gmail.com";
   const activeAppointment=data.status==="pending"||data.status==="approved";
   const paymentInstructions=activeAppointment&&!depositPaid;
   const lines=[
