@@ -226,3 +226,20 @@
 .book .customer-booking .booking-deposit-next-step strong{display:block;font-size:16px;color:#ffcbdf;margin-bottom:8px}
 .book .customer-booking .booking-deposit-next-step p{font-size:12px;line-height:1.7;margin:9px 0;color:#f5d5e5}
 .book .customer-booking .booking-deposit-next-step a{font-size:14px;font-weight:700;color:#ffd4e8;overflow-wrap:anywhere;text-decoration:underline}
+
+/* The selected style's English/French description appears before choosing a date. */
+.book .customer-booking .booking-service-selection{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 18px;
+  align-items:start;overflow-wrap:anywhere;
+}
+.book .customer-booking .booking-service-details{min-width:0}
+.book .customer-booking .booking-service-details strong{display:block;color:#ffe4f0;line-height:1.45}
+.book .customer-booking .booking-service-description{
+  white-space:pre-line;margin:9px 0 0;line-height:1.7;font-size:13px;
+  color:#f4dae8;overflow-wrap:anywhere;
+}
+.book .customer-booking .booking-service-selection>span{font-weight:650;white-space:nowrap}
+@media(max-width:560px){
+ .book .customer-booking .booking-service-selection{grid-template-columns:minmax(0,1fr);gap:9px}
+ .book .customer-booking .booking-service-selection>span{white-space:normal}
+}
