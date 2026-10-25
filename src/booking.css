@@ -243,3 +243,34 @@
  .book .customer-booking .booking-service-selection{grid-template-columns:minmax(0,1fr);gap:9px}
  .book .customer-booking .booking-service-selection>span{white-space:normal}
 }
+
+/* Customers see only genuinely bookable calendar days.
+   Published but fully booked dates are dim, crossed out, and not clickable. */
+.book .customer-booking .booking-days button.booking-day-full,
+.customer-booking .booking-days button.booking-day-full{
+  color:#c398ae;
+  background:repeating-linear-gradient(135deg,#24151f 0,#24151f 7px,#1b1018 7px,#1b1018 14px);
+  border:1px dashed #6d485e;
+  text-decoration:line-through;
+  text-decoration-thickness:1.5px;
+  opacity:.58;
+  cursor:not-allowed;
+  box-shadow:none;
+}
+.book .customer-booking .booking-days button.booking-day-full:disabled{opacity:.58}
+.book .customer-booking .booking-days button:not(:disabled):focus-visible{
+  outline:3px solid #f3aace;outline-offset:2px;
+}
+.book .customer-booking .booking-calendar-message{
+  margin:8px 0 12px;padding:10px 12px;
+  background:#21131e;border:1px solid #694457;border-radius:6px;
+  color:#f3cbdc;font-size:12px;line-height:1.65;
+}
+.book .customer-booking .booking-calendar-error{
+  background:#351823;border-color:#c8798d;color:#ffdce4;
+}
+.book .customer-booking .booking-calendar-error button{
+  display:inline-block;margin-left:10px;padding:6px 12px;
+  border-radius:5px;border:1px solid #e3a1c5;
+  background:#e5a4c6;color:#21111a;font-weight:700;cursor:pointer;
+}
