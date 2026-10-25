@@ -273,3 +273,28 @@
 .admin-item .appointment-deposit button{width:auto;max-width:100%;min-height:42px;padding:10px 14px;white-space:normal;border:1px solid #e6a5c5;border-radius:6px;background:#e6a5c5;color:#1c0d16;font-weight:700}
 .admin-item .appointment-deposit.deposit-is-received button{background:transparent;color:#e9c8d7;border-color:#997086}
 @media(max-width:600px){.admin-item .appointment-deposit{width:100%;box-sizing:border-box}.admin-item .appointment-deposit button{width:100%}}
+
+/* Clearly distinguish live and hidden hairstyles by both color and wording. */
+.admin-page .service-admin-item .service-edit-actions .service-status-button{
+  min-height:43px;padding:10px 14px;border-radius:6px;font-weight:700;
+  white-space:normal;box-shadow:inset 0 0 0 1px #ffffff24;
+}
+.admin-page .service-admin-item .service-edit-actions .service-status-enabled{
+  background:#1b5836;color:#e8fff0;border:1px solid #64d993;
+}
+.admin-page .service-admin-item .service-edit-actions .service-status-disabled{
+  background:#722635;color:#ffe9ed;border:1px solid #ff8495;
+}
+.admin-page .service-admin-item .service-edit-actions .service-status-enabled:hover:not(:disabled){background:#236a43}
+.admin-page .service-admin-item .service-edit-actions .service-status-disabled:hover:not(:disabled){background:#8d3040}
+.admin-page .service-admin-item .service-edit-actions .service-status-button:focus-visible{outline:3px solid #f5b2d5;outline-offset:3px}
+/* Create-time bilingual descriptions match edit-time fields and fit mobile. */
+.admin-page .service-create-form .service-description-field{min-width:0}
+.admin-page .service-create-form .service-description-field textarea{
+  display:block;width:100%;min-width:0;max-width:100%;min-height:85px;
+  box-sizing:border-box;background:#090609;color:#fff;border:1px solid #81576a;
+  border-radius:5px;padding:12px;font:inherit;font-size:16px;line-height:1.5;resize:vertical
+}
+.admin-page .service-create-form .service-create-note{
+  grid-column:1/-1;margin:0;font-size:12px;color:#d9bccc;line-height:1.6
+}
