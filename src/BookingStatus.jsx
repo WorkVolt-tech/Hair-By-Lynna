@@ -19,7 +19,7 @@ export default function BookingStatus({ language, initialId = '', initialReferen
  const [error, setError] = useState('');
  const [message, setMessage] = useState('');
  const words = { pending:fr?'En attente':'Pending',approved:fr?'Approuvé':'Approved',
-   declined:fr?'Refusé':'Declined',cancelled:fr?'Annulé':'Cancelled' };
+   declined:fr?'Refusé':'Declined',cancelled:fr?'Annulé':'Cancelled',completed:fr?'Terminé':'Completed' };
 
  async function check(e) {
   e.preventDefault();
