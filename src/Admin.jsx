@@ -283,6 +283,7 @@ export default function Admin(){
    setDepositDialog(null);
    depositDialogRef.current?.close();
    await reload();
+   if(appointmentView==='history')await loadHistory(true);
   }catch(ex){
    setDepositDialogError(ex.message||(lang==='fr'?"Impossible de modifier l'état de l'acompte.":'Could not update deposit status.'));
   }finally{setBusy(false)}
@@ -307,7 +308,7 @@ export default function Admin(){
   if(confirmation!=='DELETE')return;
   setBusy(true);setError('');
   const {error}=await supabase.rpc('owner_delete_finished_appointment',{p_appointment_id:a.id});
-  if(error)setError(error.message);else await reload();
+  if(error)setError(error.message);else{await reload();if(appointmentView==='history')await loadHistory(true)}
   setBusy(false);
  }
  async function addService(e){e.preventDefault();
@@ -402,6 +403,7 @@ export default function Admin(){
  const confirmedDeposit=(a)=>a.deposit_received_at?(a.deposit_amount_cents??2000):0;
  const finalPaid=(a)=>a.final_payment_received_at?(a.final_payment_amount_cents??0):0;
  const remainingCents=(a)=>Math.max(0,servicePrice(a)-confirmedDeposit(a)-finalPaid(a));
+ const overpaidCents=(a)=>Math.max(0,confirmedDeposit(a)+finalPaid(a)-servicePrice(a));
  const displayedAppointments=appointmentView==='history'?historyAppointments:appointments;
  async function completeAppointment(a){
   if(busy||role!=='owner'||a.status!=='approved'||new Date(a.ends_at).getTime()>Date.now())return;
@@ -486,6 +488,7 @@ export default function Admin(){
    <div className="appointment-payment-line"><span>{lang==='fr'?'Acompte reçu':'Deposit received'}</span><strong>−{asMoney(confirmedDeposit(a))}</strong></div>
    <div className="appointment-payment-line"><span>{lang==='fr'?'Paiement final enregistré':'Final payment recorded'}</span><strong>−{asMoney(finalPaid(a))}</strong></div>
    <div className="appointment-payment-line appointment-payment-due"><span>{lang==='fr'?'Solde restant':'Remaining balance'}</span><strong>{asMoney(remainingCents(a))}</strong></div>
+   {overpaidCents(a)>0&&<p className="appointment-payment-overpaid" role="status">{lang==='fr'?'Paiement excédentaire enregistré':'Recorded payments exceed price'}: {asMoney(overpaidCents(a))} — {lang==='fr'?'vérifiez auprès du client':'review with customer'}</p>}
    {a.status==='completed'&&<p className="appointment-payment-state">{a.final_payment_received_at
       ?(lang==='fr'?'Paiement final confirmé le':'Final payment confirmed on')+' '+new Date(a.final_payment_received_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto',dateStyle:'medium',timeStyle:'short'})
       :(lang==='fr'?'Paiement final non confirmé':'Final payment not yet confirmed')}</p>}
