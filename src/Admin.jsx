@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from './lib/supabase.js';
-import { CalendarDays, ClipboardList, Scissors, LockKeyhole, LogOut } from 'lucide-react';
+import { CalendarDays, ClipboardList, Scissors, LockKeyhole, LogOut, BadgeCheck, AlertCircle, X } from 'lucide-react';
 import './admin.css';
 import { bookingReference } from './lib/bookingReference.js';
 import { durationParts, durationTotal, formatDuration } from './lib/duration.js';
@@ -21,10 +21,18 @@ export default function Admin(){
  const [oneClientPerDay,setOneClientPerDay]=useState(null);const [day,setDay]=useState(initialDate()),[start,setStart]=useState('09:00'),[end,setEnd]=useState('17:00');
  const [nameEn,setNameEn]=useState(''),[nameFr,setNameFr]=useState(''),[descriptionEn,setDescriptionEn]=useState(''),[descriptionFr,setDescriptionFr]=useState(''),[durationHours,setDurationHours]=useState('3'),[durationMinutes,setDurationMinutes]=useState('0'),[price,setPrice]=useState('0');
  const [editingAppointment,setEditingAppointment]=useState(null),[appointmentDraft,setAppointmentDraft]=useState(null),[appointmentError,setAppointmentError]=useState('');
+ const [depositDialog,setDepositDialog]=useState(null),[depositDialogError,setDepositDialogError]=useState('');
+ const depositDialogRef=useRef(null);
  const draggingService=useRef(null);
  const [dragOverService,setDragOverService]=useState(null);
  const [editingService,setEditingService]=useState(null),[serviceDraft,setServiceDraft]=useState(null),[serviceMessage,setServiceMessage]=useState('');
  useEffect(()=>{document.documentElement.lang=lang;try{localStorage.setItem('lynna-language',lang)}catch{}},[lang]);
+ useEffect(()=>{
+   const node=depositDialogRef.current;
+   if(!node)return;
+   if(depositDialog && !node.open)node.showModal();
+   else if(!depositDialog && node.open)node.close();
+ },[depositDialog]);
  useEffect(()=>{if(!supabase){setLoading(false);return}let live=true;
    supabase.auth.getSession().then(({data,error})=>{if(live){setSession(data?.session||null);if(error)setError(error.message)}}).finally(()=>{if(live)setLoading(false)});
    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>{if(live)setSession(s)});
@@ -181,22 +189,30 @@ export default function Admin(){
   if(error)setError(error.message);else await reload();
   setBusy(false);
  }
- async function setDepositReceived(a, received){
+ function setDepositReceived(a, received){
   if(busy||role!=='owner')return;
-  const amount=new Intl.NumberFormat(lang==='fr'?'fr-CA':'en-CA',{style:'currency',currency:'CAD'})
-    .format((a.deposit_amount_cents??2000)/100);
-  const message=received
-    ?(lang==='fr'
-      ?`Confirmez-vous avoir reçu l'acompte de ${amount} pour cette réservation? Vérifiez d'abord le virement dans votre banque. Le client sera avisé.`
-      :`Have you verified the ${amount} deposit in your bank? Confirming will update the customer's status and send a notification.`)
-    :(lang==='fr'
-      ?"Annuler la confirmation de l'acompte? Le client sera informé de la correction."
-      :"Undo the deposit confirmation? The customer will be notified of the correction.");
-  if(!window.confirm(message))return;
-  setBusy(true);setError('');
-  const {error}=await supabase.rpc('admin_set_deposit_received',{p_appointment_id:a.id,p_received:received});
-  if(error)setError(error.message);else await reload();
-  setBusy(false);
+  setDepositDialogError('');
+  setDepositDialog({
+   id:a.id, name:a.customer_name, received,
+   amount:new Intl.NumberFormat(lang==='fr'?'fr-CA':'en-CA',{style:'currency',currency:'CAD'})
+      .format((a.deposit_amount_cents??2000)/100),
+   reference:bookingReference(a.id,a.starts_at)
+  });
+ }
+ async function confirmDepositChange(){
+  if(busy||role!=='owner'||!depositDialog)return;
+  setBusy(true);setDepositDialogError('');setError('');
+  try{
+   const {error:rpcError}=await supabase.rpc('admin_set_deposit_received',{
+    p_appointment_id:depositDialog.id,p_received:depositDialog.received
+   });
+   if(rpcError)throw rpcError;
+   setDepositDialog(null);
+   depositDialogRef.current?.close();
+   await reload();
+  }catch(ex){
+   setDepositDialogError(ex.message||(lang==='fr'?"Impossible de modifier l'état de l'acompte.":'Could not update deposit status.'));
+  }finally{setBusy(false)}
  }
  async function permanentlyDeleteAppointment(a){
   if(busy || role!=='owner')return;
@@ -333,5 +349,40 @@ export default function Admin(){
   :(lang==='fr'?'Le client ne peut pas venir — contactez-le':'Customer cannot attend — please contact them')}</strong>
  {a.reschedule_previous_starts_at&&<p>{lang==='fr'?'Ancienne heure':'Previous time'}: {new Date(a.reschedule_previous_starts_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto',dateStyle:'medium',timeStyle:'short'})}</p>}
  <p>{lang==='fr'?'Nouvelle heure':'Proposed time'}: {new Date(a.starts_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto',dateStyle:'medium',timeStyle:'short'})}</p>
-</div>}{a.status==='pending'&&<div className="appointment-actions"><button type="button" disabled={busy} onClick={()=>decideAppointment(a.id,'approved')}>{lang==='fr'?'Approuver':'Approve'}</button><button type="button" disabled={busy} onClick={()=>decideAppointment(a.id,'declined')}>{lang==='fr'?'Refuser':'Decline'}</button></div>}{['pending','approved'].includes(a.status)&&<div className="appointment-actions"><button type="button" className="appointment-cancel" disabled={busy} onClick={()=>cancelAppointment(a)}>{lang==='fr'?'Annuler':'Cancel appointment'}</button></div>}{role==='owner' && (['cancelled','declined'].includes(a.status)||new Date(a.ends_at).getTime()<=Date.now())&&<div className="appointment-actions"><button type="button" className="appointment-cancel" disabled={busy} onClick={()=>permanentlyDeleteAppointment(a)}>{lang==='fr'?'Supprimer définitivement':'Delete permanently'}</button></div>}{a.status==='approved'&&<div className="appointment-actions"><button type="button" disabled={busy} onClick={()=>editAppointment(a)}>{lang==='fr'?'Modifier le rendez-vous':'Edit appointment'}</button></div>}{editingAppointment===a.id&&appointmentDraft&&<form className="appointment-edit-form" onSubmit={e=>saveAppointment(e,a)}><label>{lang==='fr'?'Nouvelle date':'New date'}<input required type="date" value={appointmentDraft.date} onChange={e=>setAppointmentDraft(d=>({...d,date:e.target.value}))}/></label><label>{lang==='fr'?'Nouvelle heure (Montréal)':'New time (Montréal)'}<input required type="time" step="1800" value={appointmentDraft.time} onChange={e=>setAppointmentDraft(d=>({...d,time:e.target.value}))}/></label>{appointmentError&&<p role="alert" className="admin-error">{appointmentError}</p>}<p className="admin-muted">{lang==='fr'?'La disponibilité et les conflits seront vérifiés avant la sauvegarde. Le client sera avisé par courriel et pourra confirmer la nouvelle heure ou indiquer qu’elle ne lui convient pas.':'Availability and conflicts are checked before saving. The customer will receive an email and can confirm the new time or say they cannot attend.'}</p><div className="appointment-actions"><button type="submit" disabled={busy}>{lang==='fr'?'Enregistrer':'Save changes'}</button><button type="button" onClick={()=>{setEditingAppointment(null);setAppointmentDraft(null)}}>{lang==='fr'?'Annuler':'Cancel'}</button></div></form>}</div></div>)}</div></section>}</>}{error&&<p role="alert" className="admin-error">{error}</p>}</main></div>;
+</div>}{a.status==='pending'&&<div className="appointment-actions"><button type="button" disabled={busy} onClick={()=>decideAppointment(a.id,'approved')}>{lang==='fr'?'Approuver':'Approve'}</button><button type="button" disabled={busy} onClick={()=>decideAppointment(a.id,'declined')}>{lang==='fr'?'Refuser':'Decline'}</button></div>}{['pending','approved'].includes(a.status)&&<div className="appointment-actions"><button type="button" className="appointment-cancel" disabled={busy} onClick={()=>cancelAppointment(a)}>{lang==='fr'?'Annuler':'Cancel appointment'}</button></div>}{role==='owner' && (['cancelled','declined'].includes(a.status)||new Date(a.ends_at).getTime()<=Date.now())&&<div className="appointment-actions"><button type="button" className="appointment-cancel" disabled={busy} onClick={()=>permanentlyDeleteAppointment(a)}>{lang==='fr'?'Supprimer définitivement':'Delete permanently'}</button></div>}{a.status==='approved'&&<div className="appointment-actions"><button type="button" disabled={busy} onClick={()=>editAppointment(a)}>{lang==='fr'?'Modifier le rendez-vous':'Edit appointment'}</button></div>}{editingAppointment===a.id&&appointmentDraft&&<form className="appointment-edit-form" onSubmit={e=>saveAppointment(e,a)}><label>{lang==='fr'?'Nouvelle date':'New date'}<input required type="date" value={appointmentDraft.date} onChange={e=>setAppointmentDraft(d=>({...d,date:e.target.value}))}/></label><label>{lang==='fr'?'Nouvelle heure (Montréal)':'New time (Montréal)'}<input required type="time" step="1800" value={appointmentDraft.time} onChange={e=>setAppointmentDraft(d=>({...d,time:e.target.value}))}/></label>{appointmentError&&<p role="alert" className="admin-error">{appointmentError}</p>}<p className="admin-muted">{lang==='fr'?'La disponibilité et les conflits seront vérifiés avant la sauvegarde. Le client sera avisé par courriel et pourra confirmer la nouvelle heure ou indiquer qu’elle ne lui convient pas.':'Availability and conflicts are checked before saving. The customer will receive an email and can confirm the new time or say they cannot attend.'}</p><div className="appointment-actions"><button type="submit" disabled={busy}>{lang==='fr'?'Enregistrer':'Save changes'}</button><button type="button" onClick={()=>{setEditingAppointment(null);setAppointmentDraft(null)}}>{lang==='fr'?'Annuler':'Cancel'}</button></div></form>}</div></div>)}</div></section>}</>}{error&&<p role="alert" className="admin-error">{error}</p>}</main>
+ <dialog ref={depositDialogRef} className="admin-deposit-dialog" aria-labelledby="admin-deposit-dialog-title"
+   aria-describedby="admin-deposit-dialog-description"
+   onClose={()=>{if(!busy){setDepositDialog(null);setDepositDialogError('')}}}
+   onCancel={e=>{if(busy)e.preventDefault()}}
+   onClick={e=>{if(e.target===e.currentTarget&&!busy)e.currentTarget.close()}}>
+   {depositDialog&&<div className="admin-deposit-dialog-content">
+     <button type="button" className="admin-deposit-dialog-x" disabled={busy}
+       aria-label={lang==='fr'?'Fermer':'Close'} onClick={()=>depositDialogRef.current?.close()}><X size={21}/></button>
+     <div className="admin-deposit-dialog-icon" aria-hidden="true">
+       {depositDialog.received?<BadgeCheck size={28}/>:<AlertCircle size={28}/>}
+     </div>
+     <p className="admin-deposit-dialog-kicker">{lang==='fr'?'GESTION DES ACOMPTES':'DEPOSIT MANAGEMENT'}</p>
+     <h2 id="admin-deposit-dialog-title">{depositDialog.received
+       ?(lang==='fr'?'Confirmer la réception':'Confirm deposit received')
+       :(lang==='fr'?'Corriger le statut de l’acompte':'Correct deposit status')}</h2>
+     <div className="admin-deposit-dialog-details">
+       <strong>{depositDialog.name}</strong>
+       <span>{depositDialog.reference}</span>
+       <b>{depositDialog.amount}</b>
+     </div>
+     <p id="admin-deposit-dialog-description">{depositDialog.received
+       ?(lang==='fr'?"Avez-vous vérifié que le virement Interac est bien arrivé dans votre compte bancaire ? Ne confirmez que l’argent réellement reçu. Le client recevra un courriel et son portail sera mis à jour.":"Have you verified that the Interac e-Transfer arrived in your bank account? Only confirm money you have actually received. The customer will be emailed and their booking status will update.")
+       :(lang==='fr'?"Cette action retirera la confirmation de l’acompte et avisera le client de la correction. Elle n’effectue pas de remboursement.":"This will remove the deposit confirmation and notify the customer of the correction. It does not issue a refund.")}</p>
+     {depositDialogError&&<p className="admin-deposit-dialog-error" role="alert">{depositDialogError}</p>}
+     <div className="admin-deposit-dialog-actions">
+       <button type="button" className="admin-deposit-dialog-secondary" disabled={busy}
+         onClick={()=>depositDialogRef.current?.close()}>{lang==='fr'?'Annuler':'Cancel'}</button>
+       <button type="button" className={depositDialog.received?'admin-deposit-dialog-primary':'admin-deposit-dialog-correction'} disabled={busy}
+         onClick={confirmDepositChange}>{busy?(lang==='fr'?'Enregistrement…':'Saving…')
+            :depositDialog.received?(lang==='fr'?'Oui, acompte reçu':'Yes, deposit received')
+              :(lang==='fr'?'Retirer la confirmation':'Remove confirmation')}</button>
+     </div>
+   </div>}
+ </dialog>
+ </div>;
 }
