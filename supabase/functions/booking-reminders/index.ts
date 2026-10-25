@@ -1,0 +1,200 @@
+// Supabase Edge Function: booking-reminders
+// Called by Supabase Cron every 15 minutes, not by customer browsers.
+// Turn Verify JWT OFF in the Supabase dashboard; this function authenticates
+// every request with a separate, high-entropy X-Reminder-Secret header.
+// Requires migration 018 and BREVO_API_KEY, BOOKING_EMAIL_FROM,
+// BOOKING_REMINDER_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const logoUrl = "https://hair-by-lynna.pages.dev/images/hair-by-lynna-logo.png";
+const website = "https://hair-by-lynna.pages.dev";
+const replyToEmail = "xhair.dreams@gmail.com";
+const escapeHtml = (value: unknown) => String(value ?? "")
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+function constantTimeEquals(a: string, b: string): boolean {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  if (x.length !== y.length) return false;
+  let difference = 0;
+  for (let i = 0; i < x.length; i++) difference |= x[i] ^ y[i];
+  return difference === 0;
+}
+function bookingReference(id: string, iso: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone:"America/Toronto",year:"numeric",month:"2-digit",day:"2-digit",
+    hour:"2-digit",minute:"2-digit",hourCycle:"h23"
+  }).formatToParts(new Date(iso));
+  const get = (part: string) => parts.find(p=>p.type===part)?.value ?? "";
+  return "LYN-"+get("year")+get("month")+get("day")+"-"+get("hour")+get("minute")+"-"+id.replace(/-/g,"").slice(0,4).toUpperCase();
+}
+const montrealTime = (iso: string, language: "en" | "fr") =>
+  new Intl.DateTimeFormat(language === "fr" ? "fr-CA" : "en-CA", {
+    timeZone:"America/Toronto",dateStyle:"full",timeStyle:"short"
+  }).format(new Date(iso));
+
+type DueReminder = { reminder_id: number; appointment_id: string; starts_at: string };
+type ServiceName = { name_en?: string; name_fr?: string } | null;
+type Appointment = {
+  id: string; customer_name: string; customer_email: string;
+  starts_at: string; ends_at: string; status: string;
+  deposit_amount_cents: number | null; deposit_received_at: string | null;
+  reschedule_response: string | null;
+  services: ServiceName | ServiceName[];
+};
+const money = (cents: number) =>
+  new Intl.NumberFormat("en-CA", {style:"currency",currency:"CAD"}).format(cents/100);
+
+function buildEmail(a: Appointment) {
+  const service: ServiceName = Array.isArray(a.services) ? a.services[0] ?? null : a.services;
+  const name = a.customer_name;
+  const serviceEn = service?.name_en || service?.name_fr || "Braiding service";
+  const serviceFr = service?.name_fr || service?.name_en || "Service de coiffure";
+  const enTime = montrealTime(a.starts_at,"en"), frTime = montrealTime(a.starts_at,"fr");
+  const length = Math.max(0, Math.round((new Date(a.ends_at).getTime()-new Date(a.starts_at).getTime())/60000));
+  const enDuration = [Math.floor(length/60) ? Math.floor(length/60)+" hr"+(Math.floor(length/60)===1?"":"s") : "",
+    length%60 ? (length%60)+" min" : ""].filter(Boolean).join(" ");
+  const frDuration = [Math.floor(length/60) ? Math.floor(length/60)+" h" : "",
+    length%60 ? (length%60)+" min" : ""].filter(Boolean).join(" ");
+  const depositReceived = Boolean(a.deposit_received_at);
+  const depositAmount = money(a.deposit_amount_cents ?? 2000);
+  const ref = bookingReference(a.id,a.starts_at);
+  const link = website+"/?booking="+encodeURIComponent(a.id)+"&ref="+encodeURIComponent(ref)+"#booking-status";
+  const subject = "Hair by Lynna — Appointment reminder / Rappel de rendez-vous";
+  const enDeposit = depositReceived
+    ? "Deposit "+depositAmount+": received and confirmed."
+    : "Deposit "+depositAmount+": not yet confirmed. If you've already sent it, please do not send another payment.";
+  const frDeposit = depositReceived
+    ? "Acompte de "+depositAmount+" : reçu et confirmé."
+    : "Acompte de "+depositAmount+" : non encore confirmé. Si vous l'avez déjà envoyé, ne faites pas un deuxième virement.";
+  const textContent = [
+    "Hair by Lynna — Your appointment is coming up!",
+    "Hi "+name+",","",
+    "This is a reminder about your approved appointment in approximately 12 hours.",
+    "Hairstyle: "+serviceEn,
+    "Date and time (Montréal): "+enTime,
+    "Estimated duration: "+enDuration,
+    enDeposit,
+    "Booking reference: "+ref,
+    "View your booking: "+link,
+    "The duration is an estimate. Keep your private booking link secure.",
+    "",
+    "—",
+    "Hair by Lynna — Rappel de rendez-vous",
+    "Bonjour "+name+",","",
+    "Votre rendez-vous confirmé est prévu dans environ 12 heures.",
+    "Coiffure : "+serviceFr,
+    "Date et heure (Montréal) : "+frTime,
+    "Durée estimée : "+frDuration,
+    frDeposit,
+    "Référence : "+ref,
+    "Consulter votre rendez-vous : "+link,
+    "La durée est une estimation. Gardez votre lien de réservation privé."
+  ].join("\n");
+  const enSafe = escapeHtml(serviceEn), frSafe = escapeHtml(serviceFr);
+  const refSafe = escapeHtml(ref), linkSafe = escapeHtml(link);
+  const htmlContent = `<!doctype html><html><head><meta charset="utf-8"/></head>
+  <body style="margin:0;padding:22px 10px;background:#120c13;font-family:Arial,Helvetica,sans-serif;color:#fbeaf3;">
+    <div style="margin:0 auto;max-width:540px;background:#21121e;border:1px solid #b57495;border-radius:12px;padding:25px 20px;">
+      <img src="${logoUrl}" width="260" alt="Hair by Lynna" style="display:block;width:260px;max-width:100%;height:auto;margin:0 auto 22px;border:0;"/>
+      <h1 style="color:#f3b4d3;font-size:23px;margin:0 0 18px;line-height:1.3;">Appointment reminder / Rappel de rendez-vous</h1>
+      <p style="line-height:1.7;">Hi ${escapeHtml(name)},</p>
+      <p style="line-height:1.7;">Your <strong>approved appointment is in approximately 12 hours.</strong></p>
+      <div style="background:#311c2b;border:1px solid #855575;border-radius:8px;padding:16px 15px;line-height:1.85;">
+        <strong style="color:#ffcbe1;">${enSafe}</strong><br/>
+        ${escapeHtml(enTime)}<br/>
+        Estimated duration: <strong>${escapeHtml(enDuration)}</strong><br/>
+        ${escapeHtml(enDeposit)}<br/>
+        Reference: <strong>${refSafe}</strong>
+      </div>
+      <p style="font-size:12px;line-height:1.7;color:#e6bfd2;">The duration is an estimate. If you already sent the deposit, please don't send it again.</p>
+      <a href="${linkSafe}" style="display:inline-block;margin:12px 0 8px;background:#e9a2c4;color:#21121e;border-radius:7px;padding:14px 20px;font-weight:bold;text-decoration:none;">Check booking status</a>
+      <hr style="border:0;border-top:1px solid #70475c;margin:28px 0 22px;"/>
+      <h2 style="color:#f3b4d3;font-size:18px;margin:0 0 14px;">Rappel de rendez-vous</h2>
+      <p style="line-height:1.7;">Bonjour ${escapeHtml(name)},</p>
+      <p style="line-height:1.7;">Votre <strong>rendez-vous confirmé est prévu dans environ 12 heures.</strong></p>
+      <div style="background:#311c2b;border:1px solid #855575;border-radius:8px;padding:16px 15px;line-height:1.85;">
+        <strong style="color:#ffcbe1;">${frSafe}</strong><br/>
+        ${escapeHtml(frTime)}<br/>
+        Durée estimée : <strong>${escapeHtml(frDuration)}</strong><br/>
+        ${escapeHtml(frDeposit)}<br/>
+        Référence : <strong>${refSafe}</strong>
+      </div>
+      <a href="${linkSafe}" style="display:inline-block;margin:18px 0 8px;background:#e9a2c4;color:#21121e;border-radius:7px;padding:14px 20px;font-weight:bold;text-decoration:none;">Consulter ma réservation</a>
+      <p style="font-size:12px;line-height:1.6;color:#d7b3c5;margin-top:22px;">Use the booking email to view your private status link. / Utilisez votre courriel de réservation pour consulter votre statut.</p>
+    </div>
+  </body></html>`;
+  return {subject,textContent,htmlContent};
+}
+
+Deno.serve(async (request) => {
+  if(request.method !== "POST")return new Response("Method not allowed",{status:405});
+  const expected = Deno.env.get("BOOKING_REMINDER_SECRET") || "";
+  const supplied = request.headers.get("X-Reminder-Secret") || "";
+  if(expected.length<24 || !constantTimeEquals(supplied,expected))
+    return new Response("Unauthorized",{status:401});
+
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const brevoKey = Deno.env.get("BREVO_API_KEY");
+  const from = Deno.env.get("BOOKING_EMAIL_FROM");
+  if(!url||!key||!brevoKey||!from) {
+    console.error("booking-reminders: required Supabase or Brevo configuration missing");
+    return new Response("Not configured",{status:503});
+  }
+  const db = createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+  const {data:claimed,error:claimError} = await db.rpc("claim_due_appointment_reminders",{p_limit:20});
+  if(claimError){
+    console.error("booking-reminders: claim error",claimError.code,claimError.message);
+    return new Response("Could not load reminders",{status:503});
+  }
+  let sent=0,failed=0,skipped=0;
+  for(const reminder of (claimed||[]) as DueReminder[]){
+    let outcome: "sent"|"failed"|"skipped" = "failed";
+    let errorMessage: string | null = null;
+    try{
+      // A booking may have been cancelled or rescheduled after the cron claim.
+      // Query fresh state, and never send for a disputed reschedule.
+      const {data:record,error:lookupError} = await db.from("appointments")
+        .select("id,customer_name,customer_email,starts_at,ends_at,status,reschedule_response,deposit_amount_cents,deposit_received_at,services(name_en,name_fr)")
+        .eq("id",reminder.appointment_id).maybeSingle();
+      if(lookupError)throw Error("appointment lookup failed: "+(lookupError.code||"unknown"));
+      const a = record as Appointment | null;
+      const stillEligible = Boolean(a && a.status==="approved" &&
+        a.starts_at===reminder.starts_at &&
+        (a.reschedule_response===null||a.reschedule_response==="confirmed") &&
+        a.customer_email?.trim());
+      if(!stillEligible){
+        outcome="skipped";
+      }else{
+        const mail=buildEmail(a!);
+        const response=await fetch("https://api.brevo.com/v3/smtp/email",{
+          method:"POST",
+          headers:{"api-key":brevoKey,"Content-Type":"application/json","accept":"application/json"},
+          body:JSON.stringify({
+            sender:{name:"Hair by Lynna",email:from},
+            replyTo:{name:"Lynna",email:replyToEmail},
+            to:[{email:a!.customer_email,name:a!.customer_name}],
+            subject:mail.subject,textContent:mail.textContent,htmlContent:mail.htmlContent
+          }),
+          signal:AbortSignal.timeout(15000)
+        });
+        if(!response.ok)throw Error("Brevo HTTP "+response.status);
+        outcome="sent";
+      }
+    }catch(e){errorMessage=String((e as Error)?.message||"Email not accepted");}
+    try{
+      const {error:finishError}=await db.rpc("finish_appointment_reminder",{
+        p_reminder_id:reminder.reminder_id,p_outcome:outcome,p_error:errorMessage
+      });
+      if(finishError)throw Error(finishError.message);
+      if(outcome==="sent")sent++;else if(outcome==="skipped")skipped++;else failed++;
+    }catch(e){
+      failed++;
+      console.error("booking-reminders: unable to record delivery result",String(e));
+    }
+  }
+  console.info("booking-reminders: processed",{sent,failed,skipped});
+  return Response.json({ok:true,sent,failed,skipped});
+});
