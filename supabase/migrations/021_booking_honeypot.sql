@@ -8,6 +8,10 @@
 -- honeypot before any appointment row can be inserted.
 -- The renamed core retains its original validation, 24-hour notice, per-email
 -- and global rate limits, and existing database triggers for day/slot conflicts.
+-- Run all statements as one atomic transaction so an error cannot leave the
+-- legacy RPC renamed without its new public wrapper.
+
+begin;
 
 do $honeypot$
 begin
@@ -57,6 +61,8 @@ revoke all on function public.request_appointment(
 grant execute on function public.request_appointment(
   uuid,date,time,text,text,text,boolean,text
 ) to anon,authenticated;
+
+commit;
 
 -- Optional permission check in SQL Editor:
 -- select proname,pronargs,
