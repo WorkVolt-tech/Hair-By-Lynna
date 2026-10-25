@@ -463,3 +463,5 @@
   .admin-page .appointment-record .appointment-payment button{width:100%}
   .admin-page .appointment-history-pagination button{flex:1 1 150px}
 }
+
+.admin-page .appointment-record .appointment-payment .appointment-payment-overpaid{margin:10px 0;padding:10px;border-radius:6px;border:1px solid #da9b55;background:#39241a;color:#ffdfac;font-size:12px;font-weight:700}
