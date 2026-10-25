@@ -274,3 +274,17 @@
   border-radius:5px;border:1px solid #e3a1c5;
   background:#e5a4c6;color:#21111a;font-weight:700;cursor:pointer;
 }
+
+/* Honeypot: invisible and non-focusable to real customers, but an ordinary
+   text input in the HTML for basic spam bots. The database also validates it. */
+.customer-booking .booking-honeypot{
+  position:absolute!important;
+  left:-10000px!important;
+  top:auto!important;
+  width:1px!important;
+  height:1px!important;
+  max-height:1px!important;
+  overflow:hidden!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
