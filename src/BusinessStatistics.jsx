@@ -108,7 +108,7 @@ export default function BusinessStatistics({language}){
      hint:fr?'Prix des services, non les bénéfices':'Service prices, not profit'}
   ]:[];
 
-  return <section className="admin-panel lynna-statistics" aria-labelledby="lynna-statistics-title">
+  return <section className="admin-panel lynna-statistics" aria-labelledby="lynna-statistics-title" aria-busy={fetching}>
     <div className="stats-heading">
       <div>
         <span className="stats-kicker"><BarChart3 size={17}/>{fr?'APERÇU DE L’ENTREPRISE':'BUSINESS OVERVIEW'}</span>
@@ -134,7 +134,7 @@ export default function BusinessStatistics({language}){
         disabled={next>currentMonth} onClick={()=>setMonth(next)}><ChevronRight size={19}/></button>
     </div>
 
-    {fetching&&<p className="stats-status" role="status">{stats?(fr?'Actualisation des données…':'Refreshing data…'):(fr?'Chargement des statistiques…':'Loading statistics…')}</p>}
+    {fetching&&!stats&&<p className="stats-status" role="status">{fr?'Chargement des statistiques…':'Loading statistics…'}</p>}
     {error&&<div className="stats-error" role="alert">{error}
       <button type="button" onClick={()=>setRevision(n=>n+1)}>{fr?'Réessayer':'Try again'}</button>
     </div>}
