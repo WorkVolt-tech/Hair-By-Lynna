@@ -16,6 +16,9 @@ export default function CustomerBooking({language}){
  const [liveSlots,setLiveSlots]=useState([]),[slotsBusy,setSlotsBusy]=useState(false),[slotsReady,setSlotsReady]=useState(false);
  const [clientName,setClientName]=useState(''),[clientEmail,setClientEmail]=useState(''),[clientPhone,setClientPhone]=useState(''),[agreed,setAgreed]=useState(false),[sending,setSending]=useState(false),[success,setSuccess]=useState('');
  const [changePulse,setChangePulse]=useState(0);
+ // A real customer never sees or fills this field. Naive form-filling bots
+ // commonly populate it; migration 021 rejects such requests on the server.
+ const [companyWebsite,setCompanyWebsite]=useState('');
  // The monthly calendar uses the same server availability rules as the time picker,
  // without exposing any appointments or customer details to public visitors.
  const [calendarAvailability,setCalendarAvailability]=useState({key:'',days:[]});
@@ -164,9 +167,24 @@ export default function CustomerBooking({language}){
  async function submitRequest(e){
  e.preventDefault();if(!supabase||!service||!day||time===null||!agreed||sending)return;
  setSending(true);setError('');setSuccess('');
- const {data,error}=await supabase.rpc('request_appointment',{p_service_id:serviceId,p_day:day,p_time:pad(Math.floor(time/60))+':'+pad(time%60)+':00',p_name:clientName.trim(),p_email:clientEmail.trim(),p_phone:clientPhone.trim(),p_policy_accepted:agreed});
+ const bookingPayload={
+  p_service_id:serviceId,p_day:day,
+  p_time:pad(Math.floor(time/60))+':'+pad(time%60)+':00',
+  p_name:clientName.trim(),p_email:clientEmail.trim(),p_phone:clientPhone.trim(),
+  p_policy_accepted:agreed
+ };
+ let result=await supabase.rpc('request_appointment',{
+  ...bookingPayload,p_company_website:companyWebsite
+ });
+ // Compatibility during migration: before SQL 021 is installed the public
+ // seven-argument function still handles legitimate booking submissions.
+ // NEVER retry this fallback for a filled honeypot.
+ if(result.error?.code==='PGRST202' && companyWebsite===''){
+  result=await supabase.rpc('request_appointment',bookingPayload);
+ }
+ const {data,error}=result;
  if(error){const code=error.message||'';if(code.includes('TIME_UNAVAILABLE')||code.includes('DAY_FULL'))setCalendarRefresh(n=>n+1);setError(code.includes('TIME_UNAVAILABLE')?(fr?'Cette heure vient de devenir indisponible. Choisissez une autre heure.':'That time is no longer available. Please choose another.'):code.includes('DAY_FULL')?(fr?'Lynna accepte un seul rendez-vous ce jour-là et cette journée est déjà réservée. Choisissez une autre date.':'Lynna is accepting one client that day, and it is already booked. Please choose another date.'):code.includes('RATE_LIMITED')?(fr?'Trop de demandes récentes. Réessayez plus tard.':'Too many recent requests. Please try again later.'):fr?"Impossible d'envoyer votre demande. Vérifiez vos renseignements et réessayez.":'Unable to submit. Check your details and try again.');}
- else{setSuccess({id:data,day,time});setTime(null);setAgreed(false);setLiveSlots(v=>v.filter(x=>x!==time));setCalendarRefresh(n=>n+1);}
+ else{setSuccess({id:data,day,time});setTime(null);setAgreed(false);setCompanyWebsite('');setLiveSlots(v=>v.filter(x=>x!==time));setCalendarRefresh(n=>n+1);}
  setSending(false);
  }
  const successRef=success?bookingReference(success.id,success.day,pad(Math.floor(success.time/60))+':'+pad(success.time%60)):'';
@@ -202,7 +220,14 @@ export default function CustomerBooking({language}){
     </button>;
   })}</div>
   {day&&<><h3>{fr?'Heures possibles':'Possible times'}</h3><p className="booking-date-label">{prettyDate} · {formatDuration(service.duration_minutes,language)}</p>{slotsBusy&&!slotsReady&&<p className="booking-notice">{fr?'Vérification des horaires…':'Checking actual availability…'}</p>}{slotsReady&&liveSlots.length===0&&<p className="booking-notice" role="status">{fr?'Aucune heure réservable pour ce service à cette date. Vérifiez que la plage publiée couvre toute la durée de la coiffure, que le rendez-vous commence dans au moins 24 heures et qu’aucun autre rendez-vous ne chevauche cette période.':'No bookable times for this service on that date. The published window must cover the full service duration, the appointment must be at least 24 hours ahead, and no existing booking can overlap.'}</p>}<div className="booking-time-grid">{(slotsReady?liveSlots:[]).map(t=><button type="button" key={t} className={time===t?'selected':''} onClick={()=>setTime(t)}>{clock(t,language)}</button>)}</div></>}
-  {day&&time!==null&&<div className="booking-summary"><strong>{fr?'Votre sélection':'Your selection'}</strong><p>{fr?service.name_fr:service.name_en}</p><p>{prettyDate} · {clock(time,language)}</p><form className="booking-details" onSubmit={submitRequest}><label>{fr?'Nom complet':'Full name'}<input required maxLength={100} minLength={2} autoComplete="name" value={clientName} onChange={e=>setClientName(e.target.value)}/></label><label>{fr?'Courriel':'Email'}<input type="email" required maxLength={254} autoComplete="email" value={clientEmail} onChange={e=>setClientEmail(e.target.value)}/></label><label>{fr?'Téléphone (facultatif)':'Phone (optional)'}<input type="tel" maxLength={35} autoComplete="tel" value={clientPhone} onChange={e=>setClientPhone(e.target.value)}/></label><label className="booking-agreement"><input type="checkbox" required checked={agreed} onChange={e=>setAgreed(e.target.checked)}/><span>{fr?"J'ai lu et j'accepte les politiques de réservation et d'annulation.":"I've read and agree to the booking and cancellation policies."}</span></label><p className="booking-notice">{fr?"Réservez au moins 24 heures à l’avance. Votre demande sera en attente d’approbation. Vous recevrez un courriel avec un lien pour consulter votre réservation.":"Please book at least 24 hours ahead. Your request will be pending approval. You'll receive an email with a private booking-status link."}</p><button type="submit" disabled={sending||!agreed}>{sending?(fr?'Envoi…':'Sending…'):(fr?'Demander le rendez-vous':'Request appointment')}</button></form></div>}
+  {day&&time!==null&&<div className="booking-summary"><strong>{fr?'Votre sélection':'Your selection'}</strong><p>{fr?service.name_fr:service.name_en}</p><p>{prettyDate} · {clock(time,language)}</p><form className="booking-details" onSubmit={submitRequest}>
+  <div className="booking-honeypot" aria-hidden="true">
+    <label htmlFor="booking-company-website">Website</label>
+    <input id="booking-company-website" name="company_website" type="text"
+      autoComplete="off" tabIndex={-1} value={companyWebsite}
+      onChange={e=>setCompanyWebsite(e.target.value)}/>
+  </div>
+  <label>{fr?'Nom complet':'Full name'}<input required maxLength={100} minLength={2} autoComplete="name" value={clientName} onChange={e=>setClientName(e.target.value)}/></label><label>{fr?'Courriel':'Email'}<input type="email" required maxLength={254} autoComplete="email" value={clientEmail} onChange={e=>setClientEmail(e.target.value)}/></label><label>{fr?'Téléphone (facultatif)':'Phone (optional)'}<input type="tel" maxLength={35} autoComplete="tel" value={clientPhone} onChange={e=>setClientPhone(e.target.value)}/></label><label className="booking-agreement"><input type="checkbox" required checked={agreed} onChange={e=>setAgreed(e.target.checked)}/><span>{fr?"J'ai lu et j'accepte les politiques de réservation et d'annulation.":"I've read and agree to the booking and cancellation policies."}</span></label><p className="booking-notice">{fr?"Réservez au moins 24 heures à l’avance. Votre demande sera en attente d’approbation. Vous recevrez un courriel avec un lien pour consulter votre réservation.":"Please book at least 24 hours ahead. Your request will be pending approval. You'll receive an email with a private booking-status link."}</p><button type="submit" disabled={sending||!agreed}>{sending?(fr?'Envoi…':'Sending…'):(fr?'Demander le rendez-vous':'Request appointment')}</button></form></div>}
   {success&&<div className="booking-summary" role="status"><strong>{fr?'Demande reçue':'Request received'}</strong><p>{fr?"Votre demande est enregistrée et en attente d'approbation par Lynna.":"Your appointment request is saved and awaiting Lynna’s approval."}</p><p className="booking-notice">{fr?"Conservez votre référence et votre lien privé de réservation.":"Save your reference and private booking link."}</p><div className="booking-friendly-reference"><span>{fr?'Votre référence':'Your reference'}</span><strong>{successRef}</strong></div><div className="booking-deposit-next-step">
  <strong>{fr?'Acompte de 20 $ CAD':'$20 CAD deposit'}</strong>
  <p>{fr?'Pour réserver votre rendez-vous, envoyez votre acompte par Virement Interac à :':'To secure your appointment, send your deposit by Interac e-Transfer to:'}</p>
