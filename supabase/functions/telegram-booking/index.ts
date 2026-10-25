@@ -43,14 +43,16 @@ Deno.serve(async (req) => {
     cancelled:"🚫 Appointment cancelled",
     rescheduled:"📅 Appointment time changed — awaiting customer confirmation",
     reschedule_confirmed:"✅ Customer confirmed the new appointment time",
-    reschedule_needs_contact:"⚠️ Customer cannot attend the proposed time — follow up needed"
+    reschedule_needs_contact:"⚠️ Customer cannot attend the proposed time — follow up needed",
+    deposit_received:"💗 Deposit verified as received",
+    deposit_unconfirmed:"⚠️ Deposit confirmation reversed — follow-up needed"
   };
   if(event==="created"&&current.status!=="pending")return new Response("No notification needed",{status:200});
   const heading=headings[event]||"";
   if(!heading)return new Response("No notification needed",{status:200});
   const db=createClient(supabaseUrl,serviceKey,{auth:{persistSession:false}});
   const {data,error}=await db.from("appointments")
-    .select("id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,services(name_en)")
+    .select("id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,deposit_amount_cents,deposit_received_at,services(name_en)")
     .eq("id",current.id).single();
   if(error||!data){console.error("telegram-booking: appointment lookup failed",{code:error?.code,message:error?.message});return new Response("Appointment lookup failed",{status:500});}
   const serviceName=Array.isArray(data.services)?data.services[0]?.name_en:(data.services as {name_en?:string}|null)?.name_en;
@@ -63,6 +65,12 @@ Deno.serve(async (req) => {
     ? [Math.floor(reservedMinutes/60)?Math.floor(reservedMinutes/60)+" "+(Math.floor(reservedMinutes/60)===1?"hr":"hrs"):"",
        reservedMinutes%60?(reservedMinutes%60)+" "+(reservedMinutes%60===1?"min":"mins"):""].filter(Boolean).join(" ")
     : null;
+  const depositPaid=Boolean(data.deposit_received_at);
+  const depositAmount=new Intl.NumberFormat("en-CA",{style:"currency",currency:"CAD"}).format((data.deposit_amount_cents??2000)/100);
+  const depositLabel=depositPaid?"Received":"Not received";
+  const transferEmail="xhair.dreams@gmail.com";
+  const activeAppointment=data.status==="pending"||data.status==="approved";
+  const paymentInstructions=activeAppointment&&!depositPaid;
   const lines=[
     heading,
     "",
@@ -72,6 +80,7 @@ Deno.serve(async (req) => {
     (rescheduled?"New time: ":"Starts: ")+escapeHtml(monTime(data.starts_at)),
     "Ends: "+escapeHtml(monTime(data.ends_at)),
     "Status: "+escapeHtml(data.status),
+    "Deposit: "+escapeHtml(depositAmount+" — "+depositLabel),
     ...(rescheduled?["Customer response: awaiting confirmation"]:[]),
     ...(event==="reschedule_confirmed"?["Customer response: confirmed new time"]:[]),
     ...(event==="reschedule_needs_contact"?["Customer response: cannot attend proposed time; please contact customer"]:[]),
@@ -90,7 +99,9 @@ Deno.serve(async (req) => {
       cancelled:"Hair by Lynna — Appointment cancelled",
       rescheduled:"Hair by Lynna — Your appointment time has changed",
       reschedule_confirmed:"Hair by Lynna — New appointment time confirmed",
-      reschedule_needs_contact:"Hair by Lynna — We received your scheduling concern"
+      reschedule_needs_contact:"Hair by Lynna — We received your scheduling concern",
+      deposit_received:"Hair by Lynna — Deposit received",
+      deposit_unconfirmed:"Hair by Lynna — Deposit status corrected"
     };
     const subject=subjects[event]||"Hair by Lynna — Appointment update";
     const reference=shortRef(data.id,data.starts_at);
@@ -102,6 +113,12 @@ Deno.serve(async (req) => {
       (rescheduled?"New proposed date & time: ":"Date & time: ")+monTime(data.starts_at),
       ...(durationEstimate?["Estimated duration: "+durationEstimate]:[]),
       "Status: "+data.status,
+      "Deposit: "+depositAmount+" — "+depositLabel,
+      ...(event==="deposit_received"?["We have confirmed receipt of your deposit. It will be deducted from your final bill."]:[]),
+      ...(event==="deposit_unconfirmed"?["Your deposit confirmation was corrected. If you already transferred the deposit, please contact Lynna before sending another payment."]:[]),
+      ...(paymentInstructions?["Interac e-Transfer: "+transferEmail,
+        "Include your booking reference in the e-Transfer message. Lynna will manually confirm the payment after checking her account.",
+        "If you've already sent it, please do not send it again. Wait for Lynna's confirmation."]:[]),
       ...(rescheduled?["Please open the booking-status link and confirm whether you can attend the new time."]:[]),
       ...(event==="reschedule_confirmed"?["Thank you for confirming your new appointment time."]:[]),
       ...(event==="reschedule_needs_contact"?["We received your response. Lynna can contact you to arrange another time. Your appointment has not been cancelled."]:[]),
@@ -120,8 +137,12 @@ Deno.serve(async (req) => {
        ${rescheduled?'New proposed date &amp; time:':'Date &amp; time:'} <strong>${escapeHtml(monTime(data.starts_at))}</strong><br/>
        ${durationEstimate?'Estimated duration: <strong>'+escapeHtml(durationEstimate)+'</strong><br/>':''}
        Status: <strong>${escapeHtml(data.status)}</strong><br/>
+       Deposit: <strong>${escapeHtml(depositAmount+" — "+depositLabel)}</strong><br/>
        Reference: <strong style="color:#f2b3d1;">${escapeHtml(reference)}</strong></p>
        ${rescheduled?'<p style="color:#ffd6e9;font-weight:bold;">Please confirm the new appointment time or let Lynna know if you cannot attend, using the link below.</p>':''}
+       ${event==="deposit_received"?'<p style="color:#ffcbe1;font-weight:bold;">Your deposit has been received and will be deducted from the final bill. Thank you!</p>':''}
+       ${event==="deposit_unconfirmed"?'<p style="color:#ffcbe1;">Your deposit confirmation has been corrected. If you already sent the transfer, contact Lynna before sending another payment.</p>':''}
+       ${paymentInstructions?'<div style="padding:15px;margin:14px 0;border-radius:8px;border:1px solid #b57495;background:#311c2b;"><strong style="color:#ffcbe1;">Pay deposit by Interac e-Transfer</strong><p>Send '+escapeHtml(depositAmount)+' to <strong>'+escapeHtml(transferEmail)+'</strong>. Add your booking reference to the transfer message.</p><p style="font-size:12px;">Lynna will verify the transfer manually. If you already sent it, do not send another; wait for confirmation.</p></div>':''}
        ${event==="reschedule_needs_contact"?'<p>Lynna has been informed that the proposed time does not work for you. She can follow up to arrange another time. Your booking remains active.</p>':''}
        <a href="${escapeHtml(privateLink)}" style="display:inline-block;background:#e99ec2;color:#21121e;padding:15px 22px;border-radius:7px;text-decoration:none;font-weight:bold;margin:12px 0;">${rescheduled?'Respond to new appointment time':'Check booking status'}</a>
        ${durationEstimate?'<p style="font-size:12px;color:#d3aec0;line-height:1.5;">The duration is an estimate and may vary depending on your hair and styling needs.</p>':''}
