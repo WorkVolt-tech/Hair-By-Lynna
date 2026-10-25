@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from './lib/supabase.js';
 import { bookingReference } from './lib/bookingReference.js';
+import { formatDuration } from './lib/duration.js';
 import './booking.css';
 
 const isUuid = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value || '');
@@ -102,6 +103,18 @@ export default function BookingStatus({ language, initialId = '', initialReferen
    <p>{fmt(record.starts_at)} — {new Date(record.ends_at).toLocaleTimeString(fr?'fr-CA':'en-CA',
      {hour:'numeric',minute:'2-digit',timeZone:'America/Toronto'})}</p>
    <p className="booking-status-reference">{shownReference}</p>
+   <p className="booking-status-estimate">{fr?'Durée estimée':'Estimated duration'}: <strong>{formatDuration(Math.round((new Date(record.ends_at).getTime()-new Date(record.starts_at).getTime())/60000),language)}</strong></p>
+   <div className={'booking-deposit-status '+(record.deposit_received_at?'booking-deposit-paid':'booking-deposit-unpaid')}>
+    <span className="booking-status-label">{fr?'Statut de l’acompte':'Deposit status'}</span>
+    <strong>{new Intl.NumberFormat(fr?'fr-CA':'en-CA',{style:'currency',currency:'CAD'}).format((record.deposit_amount_cents??2000)/100)} — {record.deposit_received_at?(fr?'Reçu et confirmé':'Received and confirmed'):(fr?'Non encore reçu':'Not yet received')}</strong>
+    {record.deposit_received_at
+      ?<p>{fr?'Lynna a confirmé la réception de votre acompte. Il sera déduit du montant final.':'Lynna has confirmed receipt of your deposit. It will be deducted from your final bill.'}</p>
+      :(['pending','approved'].includes(record.status)&&<>
+        <p>{fr?'Envoyez votre acompte par Virement Interac à :':'Send your deposit by Interac e-Transfer to:'}</p>
+        <a className="booking-deposit-email" href="mailto:xhair.dreams@gmail.com">xhair.dreams@gmail.com</a>
+        <p>{fr?'Inscrivez votre référence de réservation dans le message du virement. Lynna confirmera la réception après vérification. Si vous avez déjà payé, ne renvoyez pas un deuxième virement.':'Include your booking reference in the transfer message. Lynna will confirm after verifying the payment. If you have already paid, do not send it a second time.'}</p>
+       </>)}
+   </div>
    {record.status==='approved' && record.reschedule_response==='pending' && <div className="booking-reschedule-response">
     <strong className="booking-reschedule-title">{fr?'Votre horaire a été modifié':'Your appointment time has changed'}</strong>
     {record.reschedule_previous_starts_at&&<p>{fr?'Ancien horaire':'Previous time'}: <strong>{fmt(record.reschedule_previous_starts_at)}</strong></p>}
