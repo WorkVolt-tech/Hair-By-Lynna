@@ -220,3 +220,9 @@
 .book .booking-status-panel .booking-deposit-status.booking-deposit-paid strong{color:#c9f5d7}
 .book .booking-status-panel .booking-deposit-email{display:inline-block;color:#ffd0e7;text-decoration:underline;overflow-wrap:anywhere;font-weight:700;font-size:14px;margin:2px 0 7px}
 .book .booking-status-panel .booking-status-estimate{font-size:13px;color:#e9c4d7}
+
+/* Clear e-Transfer next step after requesting an appointment. */
+.book .customer-booking .booking-deposit-next-step{margin:17px 0;padding:16px;border:1px solid #b8809f;background:#2e1b2b;border-radius:9px;text-align:left;color:#ffe0ef}
+.book .customer-booking .booking-deposit-next-step strong{display:block;font-size:16px;color:#ffcbdf;margin-bottom:8px}
+.book .customer-booking .booking-deposit-next-step p{font-size:12px;line-height:1.7;margin:9px 0;color:#f5d5e5}
+.book .customer-booking .booking-deposit-next-step a{font-size:14px;font-weight:700;color:#ffd4e8;overflow-wrap:anywhere;text-decoration:underline}
