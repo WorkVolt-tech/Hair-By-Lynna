@@ -68,7 +68,7 @@ declare
 begin
   if (select auth.uid()) is null or not exists(
      select 1 from public.admin_users
-     where user_id=(select auth.uid()) and role in ('owner','tester')
+     where user_id=(select auth.uid()) and role='owner'
   ) then
     raise exception 'ADMIN_ONLY' using errcode='42501';
   end if;
