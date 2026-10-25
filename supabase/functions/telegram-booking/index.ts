@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
     ].join("\n");
     const htmlContent=`<!doctype html><html><body style="margin:0;padding:24px 12px;background:#120c13;font-family:Arial,Helvetica,sans-serif;color:#fbeaf3;">
       <div style="max-width:540px;margin:auto;background:#21121e;border:1px solid #b57495;border-radius:12px;padding:28px 22px;">
-       <h1 style="color:#f5a6cb;font-size:26px;margin:0 0 18px;">Hair by Lynna</h1>
+       <img src="https://hair-by-lynna.pages.dev/images/hair-by-lynna-logo.png" alt="Hair by Lynna" width="260" style="display:block;width:260px;max-width:100%;height:auto;margin:0 auto 22px;border:0;outline:none;text-decoration:none;" />
        <h2 style="font-size:19px;font-weight:600;margin:0 0 18px;">${escapeHtml(subject)}</h2>
        <p>Hi ${escapeHtml(data.customer_name)},</p>
        <p style="line-height:1.8;">Service: <strong>${escapeHtml(serviceName??"Service")}</strong><br/>
