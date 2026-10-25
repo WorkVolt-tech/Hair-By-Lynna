@@ -31,7 +31,7 @@ export default function CustomerBooking({language}){
    if(requesting)return;
    requesting=true;
    try{
-    const [s,w]=await Promise.all([supabase.from('services').select('id,name_en,name_fr,duration_minutes,price_cents').eq('active',true).order('sort_order'),supabase.rpc('public_booking_windows')]);
+    const [s,w]=await Promise.all([supabase.from('services').select('id,name_en,name_fr,description_en,description_fr,duration_minutes,price_cents').eq('active',true).order('sort_order'),supabase.rpc('public_booking_windows')]);
     if(!live)return;
     if(s.error||w.error){if(initial)setError(fr?'Les disponibilités ne peuvent pas être chargées pour le moment.':'Availability cannot be loaded right now.')}
     else{setServices(s.data||[]);setWindows(w.data||[]);setError('')}
@@ -99,7 +99,13 @@ export default function CustomerBooking({language}){
   <h3>{fr?'Choisissez votre coiffure':'Choose your hairstyle'}</h3>
   {loading?<p>{fr?'Chargement…':'Loading…'}</p>:error?<p role="status" className="booking-notice">{error}</p>:null}
   {!loading&&!services.length&&<p className="booking-notice">{fr?"Les services et les horaires seront affichés ici dès qu'ils seront publiés.":"Services and available times will appear here when Lynna publishes them."}</p>}
-  <label className="booking-service-picker">{fr?'Hairstyle / Service':'Hairstyle / Service'}<select value={serviceId} onChange={e=>pickService(e.target.value)}><option value="">{fr?'— Choisissez une coiffure —':'— Select a hairstyle —'}</option>{services.map(s=><option key={s.id} value={s.id}>{fr?s.name_fr:s.name_en} · {formatDuration(s.duration_minutes,language)} · {(s.price_cents/100).toFixed(2)} $</option>)}</select></label>{services.length===1&&<p className="booking-notice">{fr?"Une seule coiffure est disponible actuellement. Lynna peut activer les autres dans Admin → Services.":"Only one hairstyle is currently available for booking. Lynna can enable other styles in Admin → Services."}</p>}{service&&<div className="booking-service-selection"><strong>{fr?service.name_fr:service.name_en}</strong><span>{formatDuration(service.duration_minutes,language)} · {(service.price_cents/100).toLocaleString(fr?'fr-CA':'en-CA',{style:'currency',currency:'CAD'})}</span></div>}
+  <label className="booking-service-picker">{fr?'Hairstyle / Service':'Hairstyle / Service'}<select value={serviceId} onChange={e=>pickService(e.target.value)}><option value="">{fr?'— Choisissez une coiffure —':'— Select a hairstyle —'}</option>{services.map(s=><option key={s.id} value={s.id}>{fr?s.name_fr:s.name_en} · {formatDuration(s.duration_minutes,language)} · {(s.price_cents/100).toFixed(2)} $</option>)}</select></label>{services.length===1&&<p className="booking-notice">{fr?"Une seule coiffure est disponible actuellement. Lynna peut activer les autres dans Admin → Services.":"Only one hairstyle is currently available for booking. Lynna can enable other styles in Admin → Services."}</p>}{service&&<div className="booking-service-selection">
+   <div className="booking-service-details">
+    <strong>{fr?service.name_fr:service.name_en}</strong>
+    {(fr?service.description_fr:service.description_en)?.trim()&&<p className="booking-service-description">{(fr?service.description_fr:service.description_en).trim()}</p>}
+   </div>
+   <span>{formatDuration(service.duration_minutes,language)} · {(service.price_cents/100).toLocaleString(fr?'fr-CA':'en-CA',{style:'currency',currency:'CAD'})}</span>
+  </div>}
   {service&&<><h3>{fr?'Choisissez une date':'Choose a date'}</h3><p className="booking-notice">{todayHint}</p>
   <div className="booking-month"><button type="button" onClick={()=>changeMonth(-1)} aria-label={fr?'Mois précédent':'Previous month'}>‹</button><strong>{monthDate.toLocaleDateString(fr?'fr-CA':'en-CA',{month:'long',year:'numeric'})}</strong><button type="button" onClick={()=>changeMonth(1)} aria-label={fr?'Mois suivant':'Next month'}>›</button></div>
   <div className="booking-days">{(fr?['L','M','M','J','V','S','D']:['M','T','W','T','F','S','S']).map((d,i)=><span className="booking-weekday" key={i}>{d}</span>)}{cells.map((d,i)=>d?<button type="button" key={d} className={day===d?'selected':''} disabled={d<todayMontreal||!windows.some(w=>w.day===d)} onClick={()=>pickDay(d)} aria-label={d}>{Number(d.slice(-2))}</button>:<span key={'blank'+i}/>)}</div>
