@@ -153,7 +153,7 @@ export default function Admin(){
   finally{setBusy(false)}
  }
  async function decideAppointment(id,status){
-  const message=lang==='fr'?'Confirmer cette décision? Le courriel automatique n’est pas encore actif.':'Confirm this decision? Automatic customer email is not enabled yet.';
+  const message=lang==='fr'?'Confirmer cette décision? Le client sera avisé par courriel.':'Confirm this decision? The customer will be notified by email.';
   if(!window.confirm(message))return;
   setBusy(true);setError('');
   const {error}=await supabase.from('appointments').update({status}).eq('id',id).eq('status','pending');
@@ -178,6 +178,23 @@ export default function Admin(){
   if(!window.confirm(message))return;
   setBusy(true);setError('');
   const {error}=await supabase.from('appointments').update({status:'cancelled'}).eq('id',a.id).in('status',['pending','approved']);
+  if(error)setError(error.message);else await reload();
+  setBusy(false);
+ }
+ async function setDepositReceived(a, received){
+  if(busy)return;
+  const amount=new Intl.NumberFormat(lang==='fr'?'fr-CA':'en-CA',{style:'currency',currency:'CAD'})
+    .format((a.deposit_amount_cents??2000)/100);
+  const message=received
+    ?(lang==='fr'
+      ?`Confirmez-vous avoir reçu l'acompte de ${amount} pour cette réservation? Vérifiez d'abord le virement dans votre banque. Le client sera avisé.`
+      :`Have you verified the ${amount} deposit in your bank? Confirming will update the customer's status and send a notification.`)
+    :(lang==='fr'
+      ?"Annuler la confirmation de l'acompte? Le client sera informé de la correction."
+      :"Undo the deposit confirmation? The customer will be notified of the correction.");
+  if(!window.confirm(message))return;
+  setBusy(true);setError('');
+  const {error}=await supabase.rpc('admin_set_deposit_received',{p_appointment_id:a.id,p_received:received});
   if(error)setError(error.message);else await reload();
   setBusy(false);
  }
@@ -300,7 +317,14 @@ export default function Admin(){
    <p className="admin-muted">{lang==='fr'?'Modifier la durée influence les créneaux futurs; les rendez-vous existants ne changent pas.':'Changing duration affects future available slots; existing appointments stay unchanged.'}</p>
    <div className="service-edit-actions"><button className="service-save" type="submit" disabled={busy}>{lang==='fr'?'Enregistrer':'Save changes'}</button><button type="button" disabled={busy} onClick={()=>{setEditingService(null);setServiceDraft(null);setServiceMessage('')}}>{lang==='fr'?'Annuler':'Cancel'}</button></div>
   </form>:<><div className="service-drag-row"><button type="button" className="service-drag-handle" disabled={busy} aria-label={lang==='fr'?'Glisser pour réordonner':'Drag to reorder'} title={lang==='fr'?'Maintenir et glisser':'Hold and drag'} onPointerDown={e=>beginServiceDrag(e,s.id)} onPointerMove={trackServiceDrag} onPointerUp={finishServiceDrag} onPointerCancel={cancelServiceDrag}>⠿</button><div className="service-summary"><strong>{lang==='fr'?s.name_fr:s.name_en}</strong><span>{formatDuration(s.duration_minutes,lang)} · {(s.price_cents/100).toFixed(2)} $</span>{(lang==='fr'?s.description_fr:s.description_en)&&<p>{lang==='fr'?s.description_fr:s.description_en}</p>}</div></div><div className="service-edit-actions"><button type="button" className="service-move" disabled={busy||services[0]?.id===s.id} onClick={()=>moveService(s.id,-1)} aria-label={lang==='fr'?'Monter le service':'Move service up'} title={lang==='fr'?'Monter':'Move up'}>↑ {lang==='fr'?'Monter':'Up'}</button><button type="button" className="service-move" disabled={busy||services[services.length-1]?.id===s.id} onClick={()=>moveService(s.id,1)} aria-label={lang==='fr'?'Descendre le service':'Move service down'} title={lang==='fr'?'Descendre':'Move down'}>↓ {lang==='fr'?'Descendre':'Down'}</button><button type="button" disabled={busy} onClick={()=>beginServiceEdit(s)}>{lang==='fr'?'Modifier':'Edit'}</button><button type="button" disabled={busy} onClick={()=>toggleService(s)}>{s.active?t.enabled:t.disabled}</button><button type="button" className="service-delete" disabled={busy} onClick={()=>deleteService(s)}>{lang==='fr'?'Supprimer':'Delete'}</button></div></>}
- </div>)}</div></section>}{tab==='appointments'&&<section className="admin-panel"><h2>{t.appointments}</h2><div className="admin-items">{appointments.length===0?t.noAppointments:appointments.map(a=><div className="admin-item" key={a.id}><div><strong>{a.customer_name}</strong> · {a.customer_email}<p>{new Date(a.starts_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto'})} · {lang==='fr'?a.services?.name_fr:a.services?.name_en} · {a.status}</p><p className="appointment-reference">{lang==='fr'?'Référence':'Reference'} : <strong>{bookingReference(a.id,a.starts_at)}</strong></p>{a.status==='approved'&&a.reschedule_response&&<div className={'appointment-reschedule-review '+(a.reschedule_response==='needs_contact'?'needs-contact':'')}>
+ </div>)}</div></section>}{tab==='appointments'&&<section className="admin-panel"><h2>{t.appointments}</h2><div className="admin-items">{appointments.length===0?t.noAppointments:appointments.map(a=><div className="admin-item" key={a.id}><div><strong>{a.customer_name}</strong> · {a.customer_email}<p>{new Date(a.starts_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto'})} · {lang==='fr'?a.services?.name_fr:a.services?.name_en} · {a.status}</p><p className="appointment-reference">{lang==='fr'?'Référence':'Reference'} : <strong>{bookingReference(a.id,a.starts_at)}</strong></p>
+ <div className={'appointment-deposit '+(a.deposit_received_at?'deposit-is-received':'deposit-is-pending')}>
+  <strong>{lang==='fr'?'Acompte':'Deposit'}: {new Intl.NumberFormat(lang==='fr'?'fr-CA':'en-CA',{style:'currency',currency:'CAD'}).format((a.deposit_amount_cents??2000)/100)} — {a.deposit_received_at?(lang==='fr'?'Reçu':'Received'):(lang==='fr'?'Non reçu':'Not received')}</strong>
+  {a.deposit_received_at?<p>{lang==='fr'?'Confirmé le':'Confirmed on'} {new Date(a.deposit_received_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto',dateStyle:'medium',timeStyle:'short'})}</p>:<p>{lang==='fr'?'Vérifiez le virement Interac avant de confirmer.':'Verify the Interac e-Transfer in the bank before confirming.'}</p>}
+  <button type="button" disabled={busy} onClick={()=>setDepositReceived(a,!a.deposit_received_at)}>
+   {a.deposit_received_at?(lang==='fr'?'Annuler la confirmation':'Undo deposit confirmation'):(lang==='fr'?'Confirmer la réception de l’acompte':'Confirm deposit received')}
+  </button>
+ </div>{a.status==='approved'&&a.reschedule_response&&<div className={'appointment-reschedule-review '+(a.reschedule_response==='needs_contact'?'needs-contact':'')}>
  <strong>{a.reschedule_response==='pending'?(lang==='fr'?'Horaire modifié — confirmation du client en attente':'Time changed — awaiting customer confirmation')
   :a.reschedule_response==='confirmed'?(lang==='fr'?'Nouvel horaire confirmé par le client':'Customer confirmed the new time')
   :(lang==='fr'?'Le client ne peut pas venir — contactez-le':'Customer cannot attend — please contact them')}</strong>
