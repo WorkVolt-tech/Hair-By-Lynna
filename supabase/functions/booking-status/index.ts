@@ -74,7 +74,7 @@ Deno.serve(async req=>{
         "\n\nEnter the same booking email to view the appointment. Keep this link private.";
       const html='<html><body style="font-family:Arial,sans-serif;background:#120c13;color:#f9e8f2;padding:28px;">'+
         '<div style="max-width:480px;margin:auto;background:#261421;border:1px solid #c888a7;border-radius:12px;padding:28px;">'+
-        '<h1 style="color:#efaccb;">Hair by Lynna</h1><p>Your booking reference:</p><h2 style="color:#ffd7e9;">'+safeHtml(reference)+'</h2>'+
+        '<img src="https://hair-by-lynna.pages.dev/images/hair-by-lynna-logo.png" alt="Hair by Lynna" width="260" style="display:block;width:260px;max-width:100%;height:auto;margin:0 auto 22px;border:0;outline:none;text-decoration:none;" /><p>Your booking reference:</p><h2 style="color:#ffd7e9;">'+safeHtml(reference)+'</h2>'+
         '<a style="display:inline-block;padding:14px 21px;background:#dda0bc;border-radius:7px;color:#1b0d16;text-decoration:none;font-weight:bold;" href="'+safeHtml(link)+'">Check booking status</a>'+
         '<p style="font-size:13px;">Enter your booking email to check your appointment. Keep this link private.</p></div></body></html>';
       try{
