@@ -25,10 +25,12 @@ A **honeypot** is a visually hidden, non-focusable text field in the public cust
 1. Select a real published service, day and time, and complete a legitimate **test booking**. It should work normally after SQL 021.
 2. To verify honeypot rejection without changing the form UI, open the public page in desktop Chrome/Edge DevTools → Console and enter:
    ```js
-   document.querySelector('[name="company_website"]').value='spam-site.test';
-   document.querySelector('[name="company_website"]').dispatchEvent(new Event('input',{bubbles:true}));
+   const input=document.querySelector('[name="company_website"]');
+   const nativeSetter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
+   nativeSetter.call(input,'spam-site.test');
+   input.dispatchEvent(new Event('input',{bubbles:true}));
    ```
-   (React controls the field value; if it is not updated by a direct DevTools assignment, you can use the browser's React DevTools instead to set its state.) Submit a test request and verify a generic error, not a new appointment. Do not test on a real customer's booking.
+   This uses the native input setter so React registers the simulated bot entry. Submit a disposable test request and verify a generic error, not a new appointment. Do not test on a real customer's booking.
 3. From Supabase SQL Editor, you can verify the legacy API is closed:
    ```sql
    select proname,pronargs,has_function_privilege('anon',oid,'EXECUTE') as anonymous_can_execute
