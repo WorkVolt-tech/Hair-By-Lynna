@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from './lib/supabase.js';
-import { CalendarDays, ClipboardList, Scissors, LockKeyhole, LogOut, BadgeCheck, AlertCircle, X } from 'lucide-react';
+import { CalendarDays, ClipboardList, Scissors, LockKeyhole, LogOut, BadgeCheck, AlertCircle, X, ShieldAlert } from 'lucide-react';
 import './admin.css';
 import { bookingReference } from './lib/bookingReference.js';
 import { durationParts, durationTotal, formatDuration } from './lib/duration.js';
@@ -23,6 +23,8 @@ export default function Admin(){
  const [editingAppointment,setEditingAppointment]=useState(null),[appointmentDraft,setAppointmentDraft]=useState(null),[appointmentError,setAppointmentError]=useState('');
  const [depositDialog,setDepositDialog]=useState(null),[depositDialogError,setDepositDialogError]=useState('');
  const depositDialogRef=useRef(null);
+ const [actionDialog,setActionDialog]=useState(null),[actionDialogText,setActionDialogText]=useState('');
+ const actionDialogRef=useRef(null),actionDialogResolver=useRef(null);
  const draggingService=useRef(null);
  const [dragOverService,setDragOverService]=useState(null);
  const [editingService,setEditingService]=useState(null),[serviceDraft,setServiceDraft]=useState(null),[serviceMessage,setServiceMessage]=useState('');
@@ -33,6 +35,37 @@ export default function Admin(){
    if(depositDialog && !node.open)node.showModal();
    else if(!depositDialog && node.open)node.close();
  },[depositDialog]);
+ useEffect(()=>{
+   const node=actionDialogRef.current;
+   if(!node)return;
+   if(actionDialog && !node.open)node.showModal();
+   else if(!actionDialog && node.open)node.close();
+ },[actionDialog]);
+ // These app-owned dialogs replace synchronous browser confirm() and prompt().
+ // The Promise resolves only on explicit user action; Escape/backdrop cancel it.
+ function openActionDialog(config){
+   if(actionDialogResolver.current)return Promise.resolve(null);
+   return new Promise(resolve=>{
+     actionDialogResolver.current=resolve;
+     setActionDialogText('');
+     setActionDialog(config);
+   });
+ }
+ function confirmAction(message,config={}){
+   return openActionDialog({...config,message,type:'confirm'});
+ }
+ function requestTypedAction(message,requiredText,config={}){
+   return openActionDialog({...config,message,requiredText,type:'typed'});
+ }
+ function finishActionDialog(value){
+   const resolve=actionDialogResolver.current;
+   actionDialogResolver.current=null;
+   actionDialogRef.current?.close();
+   setActionDialog(null);
+   setActionDialogText('');
+   resolve?.(value);
+ }
+
  useEffect(()=>{if(!supabase){setLoading(false);return}let live=true;
    supabase.auth.getSession().then(({data,error})=>{if(live){setSession(data?.session||null);if(error)setError(error.message)}}).finally(()=>{if(live)setLoading(false)});
    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>{if(live)setSession(s)});
@@ -118,8 +151,16 @@ export default function Admin(){
  async function clearAllSchedules(){
   if(busy)return;
   const message=lang==='fr'?'DANGER : cela supprimera définitivement TOUTES les disponibilités ET TOUS les rendez-vous, y compris les rendez-vous confirmés. Cette action est irréversible.':'DANGER: This permanently deletes ALL availability AND ALL appointments, including confirmed bookings. This cannot be undone.';
-  if(!window.confirm(message))return;
-  const confirmation=window.prompt(lang==='fr'?'Pour confirmer, écrivez exactement DELETE ALL APPOINTMENTS :':'To confirm, type DELETE ALL APPOINTMENTS exactly:');
+  if(!(await confirmAction(message,{
+    title:lang==='fr'?'Effacer toute la planification':'Clear all scheduling',
+    confirmLabel:lang==='fr'?'Continuer':'Continue',danger:true
+  })))return;
+  const confirmation=await requestTypedAction(
+    lang==='fr'?'Pour confirmer la suppression de tous les rendez-vous et toutes les disponibilités, saisissez exactement le texte demandé.':'To confirm permanently deleting every appointment and availability slot, enter the required text exactly.',
+    'DELETE ALL APPOINTMENTS',{
+      title:lang==='fr'?'Confirmation définitive':'Final confirmation',
+      confirmLabel:lang==='fr'?'Tout effacer':'Delete everything',danger:true
+    });
   if(confirmation!=='DELETE ALL APPOINTMENTS')return;
   setBusy(true);setError('');
   const {error}=await supabase.rpc('admin_clear_all_schedules',{p_confirmation:confirmation});
@@ -162,7 +203,11 @@ export default function Admin(){
  }
  async function decideAppointment(id,status){
   const message=lang==='fr'?'Confirmer cette décision? Le client sera avisé par courriel.':'Confirm this decision? The customer will be notified by email.';
-  if(!window.confirm(message))return;
+  if(!(await confirmAction(message,{
+    title:status==='approved'?(lang==='fr'?'Approuver le rendez-vous':'Approve appointment'):(lang==='fr'?'Refuser le rendez-vous':'Decline appointment'),
+    confirmLabel:status==='approved'?(lang==='fr'?'Oui, approuver':'Yes, approve'):(lang==='fr'?'Oui, refuser':'Yes, decline'),
+    danger:status==='declined'
+  })))return;
   setBusy(true);setError('');
   const {error}=await supabase.from('appointments').update({status}).eq('id',id).eq('status','pending');
   if(error)setError(error.message);else await reload();
@@ -183,7 +228,11 @@ export default function Admin(){
   const message=late
    ? (lang==='fr'?'Annulation à moins de 12 heures : l’acompte sera perdu selon la politique. Confirmer l’annulation ?':'Cancellation within 12 hours: the deposit will be forfeited under the policy. Confirm cancellation?')
    : (lang==='fr'?'Annuler ce rendez-vous ?':'Cancel this appointment?');
-  if(!window.confirm(message))return;
+  if(!(await confirmAction(message,{
+    title:lang==='fr'?'Annuler le rendez-vous':'Cancel appointment',
+    confirmLabel:lang==='fr'?'Oui, annuler le rendez-vous':'Yes, cancel appointment',
+    danger:true
+  })))return;
   setBusy(true);setError('');
   const {error}=await supabase.from('appointments').update({status:'cancelled'}).eq('id',a.id).in('status',['pending','approved']);
   if(error)setError(error.message);else await reload();
@@ -221,8 +270,16 @@ export default function Admin(){
   const warning=lang==='fr'
    ? 'Supprimer définitivement ce rendez-vous et les données du client ? Cette action est irréversible et ne signifie pas simplement annuler le rendez-vous.'
    : 'Permanently delete this appointment and its customer details? This cannot be undone and is different from cancellation.';
-  if(!window.confirm(warning))return;
-  const confirmation=window.prompt(lang==='fr'?'Écrivez DELETE pour confirmer la suppression :':'Type DELETE to permanently erase this appointment:');
+  if(!(await confirmAction(warning,{
+    title:lang==='fr'?'Supprimer définitivement le rendez-vous':'Permanently delete appointment',
+    confirmLabel:lang==='fr'?'Continuer':'Continue',danger:true
+  })))return;
+  const confirmation=await requestTypedAction(
+    lang==='fr'?'Saisissez exactement le texte demandé pour supprimer définitivement ce rendez-vous.':'Enter the required text exactly to permanently erase this appointment.',
+    'DELETE',{
+      title:lang==='fr'?'Confirmation définitive':'Final confirmation',
+      confirmLabel:lang==='fr'?'Supprimer définitivement':'Delete permanently',danger:true
+    });
   if(confirmation!=='DELETE')return;
   setBusy(true);setError('');
   const {error}=await supabase.rpc('owner_delete_finished_appointment',{p_appointment_id:a.id});
@@ -255,7 +312,11 @@ export default function Admin(){
  async function deleteService(s){
   if(busy)return;
   const title=lang==='fr'?s.name_fr:s.name_en;
-  const confirmed=window.confirm(lang==='fr'?`Supprimer définitivement « ${title} » ? Cette action est irréversible. Les services avec des rendez-vous ne peuvent pas être supprimés.`:`Permanently delete "${title}"? This cannot be undone. Services with appointments cannot be deleted.`);
+  const confirmed=await confirmAction(
+    lang==='fr'?`Supprimer définitivement « ${title} » ? Cette action est irréversible. Les services avec des rendez-vous ne peuvent pas être supprimés.`:`Permanently delete "${title}"? This cannot be undone. Services with appointments cannot be deleted.`,
+    {title:lang==='fr'?'Supprimer le service':'Delete service',
+     confirmLabel:lang==='fr'?'Oui, supprimer':'Yes, delete',danger:true}
+  );
   if(!confirmed)return;
   setBusy(true);setError('');
   const {count,error:checkError}=await supabase.from('appointments').select('id',{count:'exact',head:true}).eq('service_id',s.id);
@@ -382,6 +443,41 @@ export default function Admin(){
             :depositDialog.received?(lang==='fr'?'Oui, acompte reçu':'Yes, deposit received')
               :(lang==='fr'?'Retirer la confirmation':'Remove confirmation')}</button>
      </div>
+   </div>}
+ </dialog>
+ <dialog ref={actionDialogRef} className="admin-deposit-dialog admin-action-dialog"
+   aria-labelledby="admin-action-dialog-title" aria-describedby="admin-action-dialog-message"
+   onCancel={e=>{e.preventDefault();finishActionDialog(null)}}
+   onClick={e=>{if(e.currentTarget===e.target)finishActionDialog(null)}}>
+   {actionDialog&&<div className="admin-deposit-dialog-content admin-action-dialog-content">
+     <button className="admin-deposit-dialog-x" type="button" aria-label={lang==='fr'?'Fermer':'Close'}
+       onClick={()=>finishActionDialog(null)}><X size={21}/></button>
+     <div className="admin-deposit-dialog-icon" aria-hidden="true">
+       {actionDialog.danger?<ShieldAlert size={28}/>:<BadgeCheck size={28}/>}
+     </div>
+     <p className="admin-deposit-dialog-kicker">{lang==='fr'?'CONFIRMATION':'CONFIRMATION'}</p>
+     <h2 id="admin-action-dialog-title">{actionDialog.title||(lang==='fr'?'Confirmer votre action':'Confirm action')}</h2>
+     <form onSubmit={e=>{
+       e.preventDefault();
+       if(actionDialog.type==='typed'&&actionDialogText!==actionDialog.requiredText)return;
+       finishActionDialog(actionDialog.type==='typed'?actionDialogText:true);
+     }}>
+       <p id="admin-action-dialog-message" className="admin-action-dialog-message">{actionDialog.message}</p>
+       {actionDialog.type==='typed'&&<label className="admin-action-dialog-confirm-label">
+         <span>{lang==='fr'?'Saisissez exactement':'Type exactly'} : <code>{actionDialog.requiredText}</code></span>
+         <input type="text" required autoComplete="off" autoCapitalize="off" autoCorrect="off"
+           spellCheck={false} value={actionDialogText} onChange={e=>setActionDialogText(e.target.value)}
+           aria-label={lang==='fr'?'Texte de confirmation':'Confirmation text'} autoFocus/>
+       </label>}
+       <div className="admin-deposit-dialog-actions">
+         <button type="button" className="admin-deposit-dialog-secondary"
+           onClick={()=>finishActionDialog(null)}>{lang==='fr'?'Retour':'Go back'}</button>
+         <button type="submit" disabled={actionDialog.type==='typed'&&actionDialogText!==actionDialog.requiredText}
+           className={actionDialog.danger?'admin-deposit-dialog-correction':'admin-deposit-dialog-primary'}>
+           {actionDialog.confirmLabel||(lang==='fr'?'Confirmer':'Confirm')}
+         </button>
+       </div>
+     </form>
    </div>}
  </dialog>
  </div>;
