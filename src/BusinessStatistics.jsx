@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, CalendarCheck2, ChevronLeft, ChevronRight, CircleDollarSign, CreditCard, RefreshCw, TrendingUp, Wallet } from 'lucide-react';
 import { supabase } from './lib/supabase.js';
 import './businessStatistics.css';
@@ -18,11 +18,13 @@ const safeNum=value=>Number.isFinite(Number(value))?Number(value):0;
 
 export default function BusinessStatistics({language}){
   const fr=language==='fr';
-  const [month,setMonth]=useState(currentMontrealMonth);
+  const [month,setMonth]=useState(()=>{try{const saved=sessionStorage.getItem('lynna-admin-stats-month');return /^\d{4}-(0[1-9]|1[0-2])$/.test(saved||'')&&saved<='2100-12'?saved:currentMontrealMonth()}catch{return currentMontrealMonth()}});
   const [stats,setStats]=useState(null);
   const [fetching,setFetching]=useState(true);
   const [error,setError]=useState('');
   const [revision,setRevision]=useState(0);
+  const lastRefreshRef=useRef(0);
+  useEffect(()=>{try{sessionStorage.setItem('lynna-admin-stats-month',month)}catch{}},[month]);
   const currentMonth=currentMontrealMonth();
   const money=value=>new Intl.NumberFormat(fr?'fr-CA':'en-CA',{
     style:'currency',currency:'CAD',maximumFractionDigits:2
@@ -36,7 +38,9 @@ export default function BusinessStatistics({language}){
   useEffect(()=>{
     let live=true;
     async function readStats(){
-      setFetching(true);setError('');setStats(null);
+      // Preserve cards/charts while refreshing: removing them made the page jump
+      // every time the browser regained focus or a screenshot tool opened.
+      setFetching(true);setError('');
       if(!supabase){setError(fr?'Statistiques indisponibles.':'Statistics are unavailable.');setFetching(false);return}
       const {data,error:rpcError}=await supabase.rpc('owner_monthly_business_statistics',{
         p_month:month+'-01'
@@ -49,6 +53,7 @@ export default function BusinessStatistics({language}){
       }else{
         setStats(data);
       }
+      lastRefreshRef.current=Date.now();
       setFetching(false);
     }
     readStats();
@@ -62,11 +67,17 @@ export default function BusinessStatistics({language}){
       .on('postgres_changes',{event:'*',schema:'public',table:'appointments'},
         ()=>setRevision(n=>n+1))
       .subscribe();
-    const refreshOnReturn=()=>{if(document.visibilityState==='visible')setRevision(n=>n+1)};
+    // Screenshot tools and dialogs briefly change focus; avoid a network call
+    // and any resulting layout change if data was loaded recently.
+    const refreshOnReturn=()=>{
+      if(document.visibilityState==='visible'&&Date.now()-lastRefreshRef.current>90000)
+        setRevision(n=>n+1);
+    };
     window.addEventListener('focus',refreshOnReturn);
     document.addEventListener('visibilitychange',refreshOnReturn);
     const timer=window.setInterval(()=>{
-      if(document.visibilityState==='visible')setRevision(n=>n+1);
+      if(document.visibilityState==='visible'&&Date.now()-lastRefreshRef.current>90000)
+        setRevision(n=>n+1);
     },60000);
     return()=>{
       window.clearInterval(timer);
@@ -123,12 +134,12 @@ export default function BusinessStatistics({language}){
         disabled={next>currentMonth} onClick={()=>setMonth(next)}><ChevronRight size={19}/></button>
     </div>
 
-    {fetching&&<p className="stats-status" role="status">{fr?'Chargement des statistiques…':'Loading statistics…'}</p>}
+    {fetching&&<p className="stats-status" role="status">{stats?(fr?'Actualisation des données…':'Refreshing data…'):(fr?'Chargement des statistiques…':'Loading statistics…')}</p>}
     {error&&<div className="stats-error" role="alert">{error}
       <button type="button" onClick={()=>setRevision(n=>n+1)}>{fr?'Réessayer':'Try again'}</button>
     </div>}
-    {!fetching&&!error&&stats&&<>
-      <h3 className="stats-month-title">{prettyMonth(month)}</h3>
+    {stats&&<>
+      <h3 className="stats-month-title">{prettyMonth(stats.month||month)}</h3>
       <div className="stats-kpi-grid">
         {cards.map(({key,icon:Icon,label,value,hint})=><div key={key} className={'stats-kpi stats-kpi-'+key}>
           <div className="stats-kpi-title"><Icon size={18}/><span>{label}</span></div>
