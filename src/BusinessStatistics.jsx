@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, CalendarCheck2, ChevronLeft, ChevronRight, CircleDollarSign, CreditCard, RefreshCw, TrendingUp, Wallet } from 'lucide-react';
+import { BarChart3, CalendarCheck2, ChevronLeft, ChevronRight, CircleDollarSign, CreditCard, Download, RefreshCw, TrendingUp, Wallet } from 'lucide-react';
 import { supabase } from './lib/supabase.js';
+import { appointmentsCsv, paymentsCsv, statisticsCsv, saveCsv } from './lib/businessCsv.js';
 import './businessStatistics.css';
 
 const currentMontrealMonth=()=>{
@@ -22,6 +23,8 @@ export default function BusinessStatistics({language}){
   const [stats,setStats]=useState(null);
   const [fetching,setFetching]=useState(true);
   const [error,setError]=useState('');
+  const [exporting,setExporting]=useState('');
+  const [exportError,setExportError]=useState(''),[exportSuccess,setExportSuccess]=useState('');
   const [revision,setRevision]=useState(0);
   const lastRefreshRef=useRef(0);
   useEffect(()=>{try{sessionStorage.setItem('lynna-admin-stats-month',month)}catch{}},[month]);
@@ -86,6 +89,52 @@ export default function BusinessStatistics({language}){
       supabase.removeChannel(channel);
     };
   },[]);
+  async function exportReport(kind){
+    if(exporting||!supabase)return;
+    const selectedMonth=month;
+    setExporting(kind);setExportError('');setExportSuccess('');
+    try{
+      if(kind==='statistics'){
+        // Ask for a fresh owner-verified snapshot, never an older month's
+        // on-screen cache while the user is switching months.
+        const {data,error:statsError}=await supabase.rpc('owner_monthly_business_statistics',{
+          p_month:selectedMonth+'-01'
+        });
+        if(statsError||!data||data.month!==selectedMonth)throw new Error('STATS_FAILED');
+        saveCsv('hair-by-lynna-statistics-'+selectedMonth+'.csv',statisticsCsv(data,fr));
+        setExportSuccess(fr?'Statistiques CSV téléchargées.':'Statistics CSV downloaded.');
+      }else{
+        // The active and archived admin views have pagination / row limits.
+        // Fetch the entire selected month through an OWNER-ONLY SQL function.
+        const records=[];
+        const pageSize=500,maxRows=25000;
+        for(let start=0;start<maxRows;start+=pageSize){
+          const {data,error:rowsError}=await supabase.rpc('owner_export_monthly_appointments',{
+            p_month:selectedMonth+'-01'
+          }).range(start,start+pageSize-1);
+          if(rowsError)throw rowsError;
+          if(!Array.isArray(data))throw new Error('Invalid export result');
+          records.push(...data);
+          if(data.length<pageSize)break;
+          // A full final page can be the exact end of the result; the next
+          // request returns an empty page. Refuse silent truncation.
+          if(records.length>=maxRows)throw new Error('Too many records to export');
+        }
+        const rows=kind==='appointments'?appointmentsCsv(records,fr):paymentsCsv(records,fr);
+        const file=kind==='appointments'?'appointments':'payments';
+        saveCsv('hair-by-lynna-'+file+'-'+selectedMonth+'.csv',rows);
+        setExportSuccess((fr?records.length+' rendez-vous exportés.':records.length+' appointments exported.')+
+          (records.length===0?(fr?' Aucun rendez-vous pour ce mois.':' No appointments this month.'):''));
+      }
+    }catch(e){
+      // No raw customer data or file content is logged on export failures.
+      setExportError(kind==='statistics'
+        ?(fr?'Export impossible. Vérifiez la migration SQL 019 et réessayez.':'Export failed. Check SQL migration 019 and try again.')
+        :(fr?'Export impossible. Vérifiez la migration SQL 020 et réessayez.':'Export failed. Check SQL migration 020 and try again.'));
+    }finally{
+      setExporting('');
+    }
+  }
   const trend=useMemo(()=>Array.isArray(stats?.trend)?stats.trend:[],[stats]);
   const popular=useMemo(()=>Array.isArray(stats?.top_styles)?stats.top_styles:[],[stats]);
   const mostCompleted=Math.max(1,...trend.map(m=>safeNum(m.completed)));
@@ -133,6 +182,30 @@ export default function BusinessStatistics({language}){
       <button type="button" aria-label={fr?'Mois suivant':'Next month'}
         disabled={next>currentMonth} onClick={()=>setMonth(next)}><ChevronRight size={19}/></button>
     </div>
+
+    <section className="stats-export" aria-label={fr?'Exporter les rapports CSV':'Export CSV reports'}>
+      <div className="stats-export-heading">
+        <h3><Download size={18}/>{fr?'Exporter les rapports':'Export reports'}</h3>
+        <p>{fr?'Téléchargez les fichiers CSV du mois sélectionné, compatibles avec Excel et Google Sheets.':'Download CSV files for the selected month, compatible with Excel and Google Sheets.'}</p>
+      </div>
+      <div className="stats-export-buttons">
+        {[
+          ['appointments',fr?'Historique des rendez-vous':'Appointment history'],
+          ['payments',fr?'Rapport de paiements':'Payment report'],
+          ['statistics',fr?'Statistiques mensuelles':'Monthly statistics']
+        ].map(([kind,label])=><button key={kind} type="button" disabled={Boolean(exporting)}
+          onClick={()=>exportReport(kind)} aria-label={(fr?'Télécharger le CSV : ':'Download CSV: ')+label}>
+          <Download size={15}/>{exporting===kind?(fr?'Préparation…':'Preparing…'):label}
+        </button>)}
+      </div>
+      <p className="stats-export-privacy">{fr
+        ?'Privé : les fichiers de rendez-vous et paiements comprennent des noms et des courriels clients. Conservez-les en sécurité. Les remboursements ne sont pas comptabilisés.'
+        :'Private: appointment and payment files include customer names and emails. Store them securely. Refunds are not tracked.'}</p>
+      <div className="stats-export-feedback" aria-live="polite">
+        {exportError&&<span role="alert" className="stats-export-error">{exportError}</span>}
+        {exportSuccess&&<span className="stats-export-success">{exportSuccess}</span>}
+      </div>
+    </section>
 
     {fetching&&!stats&&<p className="stats-status" role="status">{fr?'Chargement des statistiques…':'Loading statistics…'}</p>}
     {error&&<div className="stats-error" role="alert">{error}
