@@ -77,6 +77,14 @@ create table if not exists public.deposit_deadline_alerts (
   last_error text,
   unique(appointment_id,notice_kind)
 );
+-- If an early version of this migration was already run, expand the
+-- notice-kind check without dropping any existing reminder log rows.
+alter table public.deposit_deadline_alerts
+  drop constraint if exists deposit_deadline_alerts_notice_kind_check;
+alter table public.deposit_deadline_alerts
+  add constraint deposit_deadline_alerts_notice_kind_check
+  check(notice_kind in ('customer_5min','owner_reported','owner_overdue'));
+
 create index if not exists deposit_deadline_alerts_retry_idx
   on public.deposit_deadline_alerts(state,locked_until);
 alter table public.deposit_deadline_alerts enable row level security;
