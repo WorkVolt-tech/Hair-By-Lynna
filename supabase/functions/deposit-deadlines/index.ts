@@ -1,6 +1,6 @@
 // Hair by Lynna — deposit deadline notifier. Deploy as "deposit-deadlines".
-// Schedule every minute using pg_cron/pg_net and the existing reminder secret.
-// Set Verify JWT OFF; this function checks X-Reminder-Secret before querying.
+// Schedule every minute using pg_cron/pg_net and a dedicated deposit-alert secret.
+// Set Verify JWT OFF; this function checks X-Deposit-Secret before querying.
 // Customers can REPORT sending money but only Lynna verifies actual receipt.
 // Never automatically cancel bookings or set deposit_received_at.
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -124,8 +124,8 @@ async function sendOwnerAlert(a:Booking,kind:string,token:string,chat:string){
 
 Deno.serve(async(request)=>{
  if(request.method!=="POST")return new Response("Method not allowed",{status:405});
- const expected=Deno.env.get("BOOKING_REMINDER_SECRET")||"";
- const supplied=request.headers.get("X-Reminder-Secret")||"";
+ const expected=Deno.env.get("DEPOSIT_DEADLINES_SECRET")||"";
+ const supplied=request.headers.get("X-Deposit-Secret")||"";
  if(expected.length<24||!sameSecret(supplied,expected))
   return new Response("Unauthorized",{status:401});
  const url=Deno.env.get("SUPABASE_URL"),key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
