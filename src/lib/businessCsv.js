@@ -65,7 +65,7 @@ export function appointmentsCsv(records,fr){
 }
 export function paymentsCsv(records,fr){
   const headings=fr
-    ?['Référence','Client','Courriel','Coiffure','Date (Montréal)','Heure de début','Date de fin','Heure de fin','Statut','Prix du service (CAD)','Acompte prévu (CAD)','Acompte reçu (CAD)','Date de réception acompte (Montréal)','Paiement final reçu (CAD)','Date de réception finale (Montréal)','Solde dû - terminés (CAD)']
+    ?['Référence','Client','Courriel','Coiffure','Date (Montréal)','Heure de début','Date de fin','Heure de fin','Statut','Prix du service (CAD)','Dépôt prévu (CAD)','Dépôt reçu (CAD)','Date de réception du dépôt (Montréal)','Paiement final reçu (CAD)','Date de réception finale (Montréal)','Solde dû - terminés (CAD)']
     :['Booking reference','Customer','Email','Hairstyle','Date (Montréal)','Start time','End date','End time','Status','Service price (CAD)','Expected deposit (CAD)','Confirmed deposit (CAD)','Deposit confirmed on (Montréal)','Confirmed final payment (CAD)','Final confirmed on (Montréal)','Outstanding - completed only (CAD)'];
   return [headings,...records.map(a=>{
     const deposit=dateParts(a.deposit_received_at),final=dateParts(a.final_payment_received_at);
@@ -83,7 +83,7 @@ export function statisticsCsv(stats,fr){
   const en=fr?{
     headers:['Mois du rendez-vous','Catégorie','Indicateur','Valeur'],
     summary:'Résumé',payment:'Paiements',popular:'Coiffures populaires',trend:'Tendance sur six mois',
-    names:['Tous les rendez-vous','En attente','Approuvés','Terminés','Annulés','Refusés','Clients distincts','Valeur des services terminés (CAD)','Acomptes confirmés (CAD)','Paiements finaux confirmés (CAD)','Total des paiements enregistrés (CAD)','Solde dû - rendez-vous terminés (CAD)','Rendez-vous terminés avec solde'],
+    names:['Tous les rendez-vous','En attente','Approuvés','Terminés','Annulés','Refusés','Clients distincts','Valeur des services terminés (CAD)','Dépôts confirmés (CAD)','Paiements finaux confirmés (CAD)','Total des paiements enregistrés (CAD)','Solde dû - rendez-vous terminés (CAD)','Rendez-vous terminés avec solde'],
     bookings:'réservations',completed:'terminés',trendDone:'Rendez-vous terminés',trendPaid:'Paiements enregistrés (CAD)'
   }:{
     headers:['Appointment month','Category','Metric','Value'],
