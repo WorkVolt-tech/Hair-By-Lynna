@@ -5,7 +5,7 @@ Prepared: October 26, 2026
 
 **Planned website placement:** a dedicated `/privacy` page, linked in the footer of every public page and next to the booking form. The page will use the site's existing EN/FR language switch. The policy is separate from the cancellation and deposit terms.
 
-**Owner approval needed before publication:** confirm the designated privacy officer and public email, the actual data-retention/deletion procedure, and any extra outside tools/analytics not visible in this repository. Do not call this policy a legal compliance certification.
+**Confirmed:** Lynna's existing business email, xhair.dreams@gmail.com, may be used for privacy requests (confirmed October 26, 2026). **Still awaiting owner approval:** designation/title of the privacy officer, the actual data-retention/deletion procedure, and any extra tools/analytics not visible in the repository. Do not call this policy a legal compliance certification.
 
 ---
 
@@ -19,7 +19,7 @@ Hair by Lynna respects your privacy. This policy explains how personal informati
 
 **Business:** Hair by Lynna, Montréal, Québec  
 **Person responsible for protecting personal information:** Hair by Lynna — Business Owner / Privacy Officer **[confirm title and designated person with Lynna]**  
-**Privacy contact:** xhair.dreams@gmail.com **[confirm Lynna agrees to use this address for privacy requests]**
+**Privacy contact:** xhair.dreams@gmail.com
 
 Please write **“Privacy / Confidentialité”** in your email subject for an access, correction, withdrawal or complaint request.
 
@@ -92,7 +92,7 @@ Hair by Lynna respecte votre vie privée. La présente politique explique commen
 
 **Entreprise :** Hair by Lynna, Montréal (Québec)  
 **Personne responsable :** Hair by Lynna — Propriétaire / Responsable de la protection des renseignements personnels **[titre et personne à confirmer avec Lynna]**  
-**Courriel :** xhair.dreams@gmail.com **[faire confirmer par Lynna l'utilisation de cette adresse pour les demandes de confidentialité]**
+**Courriel :** xhair.dreams@gmail.com
 
 Indiquez **« Confidentialité »** dans l'objet du courriel pour une demande d'accès, de rectification, de retrait du consentement ou pour une plainte.
 
@@ -158,7 +158,7 @@ Nous mettrons à jour la date indiquée au début de cette politique lorsque nos
 ## Owner's approval checklist (not for the public page)
 
 - [ ] Confirm the privacy officer's public title and contact details. Québec requires the officer's **title and contact details** to be published.
-- [ ] Confirm that the existing public email is acceptable for privacy inquiries.
+- [x] Lynna's business email is confirmed as the privacy inquiry address: xhair.dreams@gmail.com (October 26, 2026).
 - [ ] Choose and document real retention and secure deletion practices for appointments, financial records, email and Telegram records.
 - [ ] Confirm the use and locations of the cloud service providers, and obtain any legally required privacy impact assessment and processing agreements for data outside Québec.
 - [ ] Confirm whether any advertising, analytics or other third-party tracking has been configured outside the GitHub repository.
