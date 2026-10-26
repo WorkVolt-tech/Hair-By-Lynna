@@ -35,60 +35,65 @@ type Alert={notice_id:number;appointment_id:string;notice_kind:string;due_at:str
 type Booking={
  id:string;customer_name:string;customer_email:string;status:string;
  starts_at:string;deposit_due_at:string|null;deposit_received_at:string|null;
- deposit_reported_sent_at:string|null;deposit_amount_cents:number|null;
+ deposit_reported_sent_at:string|null;deposit_amount_cents:number|null;preferred_language:string|null;
 };
 async function sendWarning(a:Booking,brevoKey:string,sender:string){
- const amount=new Intl.NumberFormat("en-CA",{style:"currency",currency:"CAD"}).format((a.deposit_amount_cents??2000)/100);
+ const lang:"en"|"fr"=a.preferred_language==="fr"?"fr":"en";
+ const fr=lang==="fr";
+ const amount=new Intl.NumberFormat(fr?"fr-CA":"en-CA",{style:"currency",currency:"CAD"}).format((a.deposit_amount_cents??2000)/100);
  const ref=bookingReference(a.id,a.starts_at);
- const url=website+"/?booking="+encodeURIComponent(a.id)+"&ref="+encodeURIComponent(ref)+"&deposit=sent#booking-status";
- const deadlineEn=montreal(a.deposit_due_at!,"en"),deadlineFr=montreal(a.deposit_due_at!,"fr");
- const subject="Hair by Lynna — Deposit due soon / Dépôt à envoyer";
+ const link=website+"/?booking="+encodeURIComponent(a.id)+"&ref="+encodeURIComponent(ref)+"&deposit=sent#booking-status";
+ const deadline=montreal(a.deposit_due_at!,lang);
+ const t=fr?{
+  subject:"Hair by Lynna — Votre dépôt est dû dans 5 minutes",
+  hello:"Bonjour",
+  intro:"Votre dépôt Interac de "+amount+" doit être envoyé dans environ 5 minutes.",
+  caution:"Si le dépôt ne peut pas être vérifié après l'échéance, Lynna pourrait annuler la demande et libérer le créneau.",
+  due:"Date limite (Montréal)",
+  already:"Si vous avez déjà envoyé le dépôt, ne faites pas un deuxième virement.",
+  button:"J'ai envoyé mon dépôt",
+  explain:"Ouvrez le lien, entrez votre courriel de réservation et cliquez sur le bouton pour déclarer l'envoi. Lynna vérifiera le virement.",
+  reference:"Référence"
+ }:{
+  subject:"Hair by Lynna — Deposit due in 5 minutes",
+  hello:"Hi",
+  intro:"Your "+amount+" Interac deposit is due in approximately 5 minutes.",
+  caution:"If the deposit cannot be verified after the deadline, Lynna may cancel the request and release the appointment slot.",
+  due:"Deadline (Montréal)",
+  already:"If you already sent your deposit, do not send another transfer.",
+  button:"I've sent my deposit",
+  explain:"Open the link, enter your booking email and tap the button to report sending the transfer. Lynna will verify the payment.",
+  reference:"Booking reference"
+ };
  const plain=[
-  "Hair by Lynna — Deposit reminder",
-  "Hi "+a.customer_name+",",
-  "Your "+amount+" Interac deposit is due in approximately 5 minutes.",
-  "If Lynna cannot verify the deposit after the deadline, your booking may be manually cancelled and the slot released.",
-  "Deadline (Montréal): "+deadlineEn,
-  "If you already sent it, do not send another transfer. Report it here: "+url,
-  "Enter the email used for your booking, then select 'I've sent my deposit'.",
-  "Lynna will verify your Interac transfer before marking it received.",
-  "Booking reference: "+ref,
-  "",
-  "Hair by Lynna — Rappel de dépôt",
-  "Bonjour "+a.customer_name+",",
-  "Votre dépôt Interac de "+amount+" doit être envoyé dans environ 5 minutes.",
-  "Si Lynna ne peut pas vérifier le dépôt après l'échéance, la demande pourrait être annulée manuellement et le créneau libéré.",
-  "Date limite (Montréal) : "+deadlineFr,
-  "Si vous l'avez déjà envoyé, ne faites pas un deuxième virement.",
-  "Déclarez l'envoi ici : "+url,
-  "Entrez le courriel de réservation, puis cliquez sur « J'ai envoyé mon dépôt ».",
-  "Lynna doit vérifier le virement avant de confirmer sa réception."
+  t.subject,"",t.hello+" "+a.customer_name+",","",t.intro,
+  t.due+": "+deadline,t.caution,"",t.already,
+  t.button+": "+link,t.explain,t.reference+": "+ref,"","Hair by Lynna"
  ].join("\n");
- const html=`<!doctype html><html><body style="margin:0;padding:22px 12px;background:#120c13;color:#f9e8f2;font-family:Arial,sans-serif;">
- <div style="margin:auto;max-width:540px;padding:27px 23px;border-radius:12px;background:#22121e;border:1px solid #bc7c9f;">
- <img src="${logo}" alt="Hair by Lynna" width="240" style="max-width:100%;height:auto;display:block;margin:0 auto 18px;"/>
- <h2 style="color:#ffd3e8;font-size:21px;">Deposit due in 5 minutes / Dépôt dans 5 minutes</h2>
- <p>Hello ${escapeHtml(a.customer_name)},</p>
- <p>Your <strong>${escapeHtml(amount)}</strong> Interac deposit deadline is approaching.</p>
- <p style="color:#ffd1df;">If the deposit cannot be verified after the deadline, Lynna may cancel the request and release the appointment slot.</p>
- <p style="color:#ffd1df;">Si le dépôt ne peut pas être vérifié après l'échéance, Lynna pourrait annuler la demande et libérer le créneau.</p>
- <p><strong>Deadline:</strong> ${escapeHtml(deadlineEn)}<br/>
- <strong>Date limite :</strong> ${escapeHtml(deadlineFr)}</p>
- <p>If you already sent the payment, do not send it again. / Si vous avez déjà envoyé le dépôt, ne faites pas un deuxième virement.</p>
- <a href="${escapeHtml(url)}" style="display:inline-block;background:#f0aeca;color:#25111c;border-radius:6px;padding:14px 18px;text-decoration:none;font-weight:bold;">I've sent my deposit / J'ai envoyé mon dépôt</a>
- <p style="font-size:12px;line-height:1.65;">Open the link and verify your booking email, then click the deposit-sent button. / Ouvrez le lien, vérifiez votre courriel et déclarez l'envoi du dépôt.</p>
- <p style="font-size:12px;color:#ddb9cb;">Lynna must verify the Interac transfer before confirming receipt. / Lynna doit vérifier le virement avant de confirmer la réception.</p>
- <p>Reference / Référence : ${escapeHtml(ref)}</p>
- </div></body></html>`;
- const r=await fetch("https://api.brevo.com/v3/smtp/email",{
+ const html=[
+  '<!doctype html><html lang="'+lang+'"><body style="margin:0;padding:22px 12px;background:#120c13;color:#f9e8f2;font-family:Arial,sans-serif;">',
+  '<div style="margin:auto;max-width:540px;padding:27px 23px;border-radius:12px;background:#22121e;border:1px solid #bc7c9f;">',
+  '<img src="'+logo+'" alt="Hair by Lynna" width="240" style="max-width:100%;height:auto;display:block;margin:0 auto 18px;"/>',
+  '<h2 style="color:#ffd3e8;font-size:21px;">'+escapeHtml(t.subject)+'</h2>',
+  '<p>'+escapeHtml(t.hello)+' '+escapeHtml(a.customer_name)+',</p>',
+  '<p>'+escapeHtml(t.intro)+'</p>',
+  '<p><strong>'+escapeHtml(t.due)+':</strong> '+escapeHtml(deadline)+'</p>',
+  '<p style="color:#ffd1df;">'+escapeHtml(t.caution)+'</p>',
+  '<p>'+escapeHtml(t.already)+'</p>',
+  '<a href="'+escapeHtml(link)+'" style="display:inline-block;background:#f0aeca;color:#25111c;border-radius:6px;padding:14px 18px;text-decoration:none;font-weight:bold;">'+escapeHtml(t.button)+'</a>',
+  '<p style="font-size:12px;line-height:1.65;">'+escapeHtml(t.explain)+'</p>',
+  '<p>'+escapeHtml(t.reference)+': '+escapeHtml(ref)+'</p>',
+  '</div></body></html>'
+ ].join("");
+ const response=await fetch("https://api.brevo.com/v3/smtp/email",{
   method:"POST",headers:{"Content-Type":"application/json","accept":"application/json","api-key":brevoKey},
   body:JSON.stringify({
    sender:{name:"Hair by Lynna",email:sender},
    replyTo:{name:"Lynna",email:"xhair.dreams@gmail.com"},
-   to:[{name:a.customer_name,email:a.customer_email}],subject,textContent:plain,htmlContent:html
+   to:[{name:a.customer_name,email:a.customer_email}],subject:t.subject,textContent:plain,htmlContent:html
   })
  });
- if(!r.ok)throw Error("Brevo HTTP "+r.status);
+ if(!response.ok)throw Error("Brevo HTTP "+response.status);
 }
 async function sendOwnerAlert(a:Booking,kind:string,token:string,chat:string){
  const ref=bookingReference(a.id,a.starts_at);
@@ -142,7 +147,7 @@ Deno.serve(async(request)=>{
   let errorMessage:string|null=null;
   try{
    const {data:booking,error:fetchError}=await db.from("appointments")
-    .select("id,customer_name,customer_email,status,starts_at,deposit_due_at,deposit_received_at,deposit_reported_sent_at,deposit_amount_cents")
+    .select("id,customer_name,customer_email,status,starts_at,deposit_due_at,deposit_received_at,deposit_reported_sent_at,deposit_amount_cents,preferred_language")
     .eq("id",item.appointment_id).maybeSingle();
    if(fetchError)throw Error("Booking lookup failed: "+fetchError.code);
    const a=booking as Booking|null;
