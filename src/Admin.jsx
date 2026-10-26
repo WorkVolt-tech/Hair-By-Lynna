@@ -493,7 +493,18 @@ export default function Admin(){
   :displayedAppointments.map(a=><div className={'admin-item appointment-record'+(a.status==='completed'?' appointment-record-completed':'')} key={a.id}><div><strong>{a.customer_name}</strong> · {a.customer_email}<p>{new Date(a.starts_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto'})} · {lang==='fr'?a.services?.name_fr:a.services?.name_en} · <strong className={'appointment-record-status status-'+a.status}>{a.status==='completed'?(lang==='fr'?'Terminé':'Completed'):a.status==='pending'?(lang==='fr'?'En attente':'Pending'):a.status==='approved'?(lang==='fr'?'Approuvé':'Approved'):a.status==='cancelled'?(lang==='fr'?'Annulé':'Cancelled'):(lang==='fr'?'Refusé':'Declined')}</strong></p><p className="appointment-reference">{lang==='fr'?'Référence':'Reference'} : <strong>{bookingReference(a.id,a.starts_at)}</strong></p>
  <div className={'appointment-deposit '+(a.deposit_received_at?'deposit-is-received':'deposit-is-pending')}>
   <strong>{lang==='fr'?'Dépôt':'Deposit'}: {new Intl.NumberFormat(lang==='fr'?'fr-CA':'en-CA',{style:'currency',currency:'CAD'}).format((a.deposit_amount_cents??2000)/100)} — {a.deposit_received_at?(lang==='fr'?'Reçu':'Received'):(lang==='fr'?'Non reçu':'Not received')}</strong>
-  {a.deposit_received_at?<p>{lang==='fr'?'Confirmé le':'Confirmed on'} {new Date(a.deposit_received_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto',dateStyle:'medium',timeStyle:'short'})}</p>:<p>{lang==='fr'?'Vérifiez le virement Interac avant de confirmer.':'Verify the Interac e-Transfer in the bank before confirming.'}</p>}
+  {a.deposit_received_at?<p>{lang==='fr'?'Confirmé le':'Confirmed on'} {new Date(a.deposit_received_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto',dateStyle:'medium',timeStyle:'short'})}</p>:<>
+   {a.deposit_due_at&&['pending','approved'].includes(a.status)&&<div className={'deposit-deadline-status '+(a.deposit_reported_sent_at?'deposit-claimed':new Date(a.deposit_due_at).getTime()<=Date.now()?'deposit-overdue':'deposit-waiting')}>
+    <strong>{a.deposit_reported_sent_at
+      ?(lang==='fr'?'Le client déclare avoir envoyé le dépôt — vérifiez Interac':'Customer reports deposit sent — verify Interac')
+      :new Date(a.deposit_due_at).getTime()<=Date.now()
+        ?(lang==='fr'?'Délai dépassé — vérifiez le compte avant toute annulation':'Deadline passed — check bank before cancelling')
+        :(lang==='fr'?'En attente du dépôt':'Awaiting deposit')}</strong>
+    <p>{lang==='fr'?'Date limite du dépôt : ':'Deposit deadline: '}{new Date(a.deposit_due_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto',dateStyle:'medium',timeStyle:'short'})}</p>
+    {a.deposit_reported_sent_at&&<p>{lang==='fr'?'Déclaré envoyé le : ':'Reported sent on: '}{new Date(a.deposit_reported_sent_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto',dateStyle:'medium',timeStyle:'short'})}</p>}
+   </div>}
+   <p>{lang==='fr'?'Vérifiez le virement Interac avant de confirmer.':'Verify the Interac e-Transfer in the bank before confirming.'}</p>
+  </>}
   {role==='owner'&&  <button type="button" disabled={busy} onClick={()=>setDepositReceived(a,!a.deposit_received_at)}>
    {a.deposit_received_at?(lang==='fr'?'Annuler la confirmation':'Undo deposit confirmation'):(lang==='fr'?'Confirmer la réception du dépôt':'Confirm deposit received')}
   </button>}
