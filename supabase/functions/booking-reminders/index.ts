@@ -68,8 +68,8 @@ function buildEmail(a: Appointment) {
     ? "Deposit "+depositAmount+": received and confirmed."
     : "Deposit "+depositAmount+": not yet confirmed. If you've already sent it, please do not send another payment.";
   const frDeposit = depositReceived
-    ? "Acompte de "+depositAmount+" : reçu et confirmé."
-    : "Acompte de "+depositAmount+" : non encore confirmé. Si vous l'avez déjà envoyé, ne faites pas un deuxième virement.";
+    ? "Dépôt de "+depositAmount+" : reçu et confirmé."
+    : "Dépôt de "+depositAmount+" : non encore confirmé. Si vous l'avez déjà envoyé, ne faites pas un deuxième virement.";
   const textContent = [
     "Hair by Lynna — Your appointment is coming up!",
     "Hi "+name+",","",
