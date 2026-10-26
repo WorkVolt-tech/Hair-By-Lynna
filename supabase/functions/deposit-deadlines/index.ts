@@ -47,6 +47,7 @@ async function sendWarning(a:Booking,brevoKey:string,sender:string){
   "Hair by Lynna — Deposit reminder",
   "Hi "+a.customer_name+",",
   "Your "+amount+" Interac deposit is due in approximately 5 minutes.",
+  "If Lynna cannot verify the deposit after the deadline, your booking may be manually cancelled and the slot released.",
   "Deadline (Montréal): "+deadlineEn,
   "If you already sent it, do not send another transfer. Report it here: "+url,
   "Enter the email used for your booking, then select 'I've sent my deposit'.",
@@ -56,6 +57,7 @@ async function sendWarning(a:Booking,brevoKey:string,sender:string){
   "Hair by Lynna — Rappel de dépôt",
   "Bonjour "+a.customer_name+",",
   "Votre dépôt Interac de "+amount+" doit être envoyé dans environ 5 minutes.",
+  "Si Lynna ne peut pas vérifier le dépôt après l'échéance, la demande pourrait être annulée manuellement et le créneau libéré.",
   "Date limite (Montréal) : "+deadlineFr,
   "Si vous l'avez déjà envoyé, ne faites pas un deuxième virement.",
   "Déclarez l'envoi ici : "+url,
@@ -68,6 +70,8 @@ async function sendWarning(a:Booking,brevoKey:string,sender:string){
  <h2 style="color:#ffd3e8;font-size:21px;">Deposit due in 5 minutes / Dépôt dans 5 minutes</h2>
  <p>Hello ${escapeHtml(a.customer_name)},</p>
  <p>Your <strong>${escapeHtml(amount)}</strong> Interac deposit deadline is approaching.</p>
+ <p style="color:#ffd1df;">If the deposit cannot be verified after the deadline, Lynna may cancel the request and release the appointment slot.</p>
+ <p style="color:#ffd1df;">Si le dépôt ne peut pas être vérifié après l'échéance, Lynna pourrait annuler la demande et libérer le créneau.</p>
  <p><strong>Deadline:</strong> ${escapeHtml(deadlineEn)}<br/>
  <strong>Date limite :</strong> ${escapeHtml(deadlineFr)}</p>
  <p>If you already sent the payment, do not send it again. / Si vous avez déjà envoyé le dépôt, ne faites pas un deuxième virement.</p>
