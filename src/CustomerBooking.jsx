@@ -7,6 +7,36 @@ const pad=n=>String(n).padStart(2,'0');
 const dateKey=d=>[d.getFullYear(),pad(d.getMonth()+1),pad(d.getDate())].join('-');
 const dateObj=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d,12)};
 const mins=s=>{const [h,m]=s.split(':').map(Number);return h*60+m};
+// Keep booking failures right beside Submit rather than at the top of the
+// calendar (where a visitor cannot see them). Never expose raw SQL internals.
+function bookingFailureMessage(error,fr){
+ const message=String(error?.message||'').toUpperCase();
+ const code=String(error?.code||'').toUpperCase();
+ if(message.includes('DAY_FULL'))return fr
+  ?'Lynna a déjà un rendez-vous réservé ce jour-là. Choisissez une autre date.'
+  :'Lynna already has a booking that day. Please choose another date.';
+ if(message.includes('TIME_UNAVAILABLE'))return fr
+  ?'Cette heure n’est plus disponible. Veuillez en choisir une autre.'
+  :'That time is no longer available. Please select another time.';
+ if(message.includes('RATE_LIMITED'))return fr
+  ?'Trop de demandes récentes. Réessayez plus tard ou contactez Lynna.'
+  :'Too many recent requests. Please try later or contact Lynna.';
+ if(message.includes('INVALID_DETAILS'))return fr
+  ?'Vérifiez votre nom, courriel et téléphone, puis réessayez.'
+  :'Please check your name, email and phone number, then try again.';
+ if(message.includes('POLICY_REQUIRED'))return fr
+  ?'Vous devez accepter les politiques avant de réserver.'
+  :'Please accept the booking policies before submitting.';
+ if(message.includes('REQUEST_REJECTED'))return fr
+  ?'Cette demande n’a pas pu être vérifiée. Rechargez la page, puis réessayez.'
+  :'Your request could not be verified. Refresh the page and try again.';
+ if(code==='PGRST202'||code==='PGRST203'||code==='42883'||code==='42501')return fr
+  ?'La réservation en ligne est temporairement indisponible. Rechargez la page. Si le problème persiste, contactez Lynna. (Code : '+code+')'
+  :'Online booking is temporarily unavailable. Refresh this page; if the problem continues, contact Lynna. (Code: '+code+')';
+ return fr
+  ?'Impossible d’envoyer la demande. Réessayez ou contactez Lynna. (Code : '+(code||'RÉSEAU')+')'
+  :'Unable to submit your booking. Please try again or contact Lynna. (Code: '+(code||'NETWORK')+')';
+}
 const clock=(n,lang)=>new Date(2026,0,1,Math.floor(n/60),n%60).toLocaleTimeString(lang==='fr'?'fr-CA':'en-CA',{hour:'numeric',minute:'2-digit'});
 function monthCells(month){const [y,m]=month.split('-').map(Number);const first=new Date(y,m-1,1);const lead=(first.getDay()+6)%7;const days=new Date(y,m,0).getDate();return Array.from({length:Math.ceil((days+lead)/7)*7},(_,i)=>{const n=i-lead+1;return n>=1&&n<=days?dateKey(new Date(y,m-1,n)):null})}
 export default function CustomerBooking({language}){
@@ -16,6 +46,7 @@ export default function CustomerBooking({language}){
  const [liveSlots,setLiveSlots]=useState([]),[slotsBusy,setSlotsBusy]=useState(false),[slotsReady,setSlotsReady]=useState(false);
  const [clientName,setClientName]=useState(''),[clientEmail,setClientEmail]=useState(''),[clientPhone,setClientPhone]=useState(''),[agreed,setAgreed]=useState(false),[sending,setSending]=useState(false),[success,setSuccess]=useState('');
  const [changePulse,setChangePulse]=useState(0);
+ const [submitError,setSubmitError]=useState('');
  // A real customer never sees or fills this field. Naive form-filling bots
  // commonly populate it; migration 021 rejects such requests on the server.
  const [companyWebsite,setCompanyWebsite]=useState('');
@@ -153,39 +184,58 @@ export default function CustomerBooking({language}){
  const cells=useMemo(()=>monthCells(month),[month]);
  function changeMonth(direction){
   const [y,m]=month.split('-').map(Number);const next=new Date(y,m-1+direction,1);
-  setMonth(dateKey(next).slice(0,7));setDay('');setTime(null);
+  setMonth(dateKey(next).slice(0,7));setDay('');setTime(null);setSubmitError('');
  }
  const todayHint=fr
   ?'Seules les dates avec au moins une heure réservable peuvent être sélectionnées. Les journées complètes sont désactivées, notamment si Lynna accepte un seul client par jour.'
   :'Only dates with at least one bookable time can be selected. Fully booked days are disabled, including when Lynna allows one client per day.';
  const monthDate=dateObj(month+'-01');
- function pickService(id){setError('');setServiceId(id);setDay('');setTime(null)}
+ function pickService(id){setError('');setSubmitError('');setServiceId(id);setDay('');setTime(null)}
  function pickDay(d){
   if(d<todayMontreal||!calendarReady||!bookableDays.includes(d))return;
-  setError('');setDay(d);setTime(null);
+  setError('');setSubmitError('');setDay(d);setTime(null);
  }
  async function submitRequest(e){
- e.preventDefault();if(!supabase||!service||!day||time===null||!agreed||sending)return;
- setSending(true);setError('');setSuccess('');
- const bookingPayload={
-  p_service_id:serviceId,p_day:day,
-  p_time:pad(Math.floor(time/60))+':'+pad(time%60)+':00',
-  p_name:clientName.trim(),p_email:clientEmail.trim(),p_phone:clientPhone.trim(),
-  p_policy_accepted:agreed
- };
- let result=await supabase.rpc('request_appointment',{
-  ...bookingPayload,p_company_website:companyWebsite
- });
- // Compatibility during migration: before SQL 021 is installed the public
- // seven-argument function still handles legitimate booking submissions.
- // NEVER retry this fallback for a filled honeypot.
- if(result.error?.code==='PGRST202' && companyWebsite===''){
-  result=await supabase.rpc('request_appointment',bookingPayload);
- }
- const {data,error}=result;
- if(error){const code=error.message||'';if(code.includes('TIME_UNAVAILABLE')||code.includes('DAY_FULL'))setCalendarRefresh(n=>n+1);setError(code.includes('TIME_UNAVAILABLE')?(fr?'Cette heure vient de devenir indisponible. Choisissez une autre heure.':'That time is no longer available. Please choose another.'):code.includes('DAY_FULL')?(fr?'Lynna accepte un seul rendez-vous ce jour-là et cette journée est déjà réservée. Choisissez une autre date.':'Lynna is accepting one client that day, and it is already booked. Please choose another date.'):code.includes('RATE_LIMITED')?(fr?'Trop de demandes récentes. Réessayez plus tard.':'Too many recent requests. Please try again later.'):fr?"Impossible d'envoyer votre demande. Vérifiez vos renseignements et réessayez.":'Unable to submit. Check your details and try again.');}
- else{setSuccess({id:data,day,time});setTime(null);setAgreed(false);setCompanyWebsite('');setLiveSlots(v=>v.filter(x=>x!==time));setCalendarRefresh(n=>n+1);}
- setSending(false);
+  e.preventDefault();
+  if(!supabase||!service||!day||time===null||!agreed||sending)return;
+  setSending(true);setSubmitError('');setSuccess('');
+  const bookingPayload={
+   p_service_id:serviceId,p_day:day,
+   p_time:pad(Math.floor(time/60))+':'+pad(time%60)+':00',
+   p_name:clientName.trim(),p_email:clientEmail.trim(),p_phone:clientPhone.trim(),
+   p_policy_accepted:agreed
+  };
+  try{
+   let result=await supabase.rpc('request_appointment',{
+    ...bookingPayload,p_company_website:companyWebsite
+   });
+   // This compatibility fallback works only before SQL 021 is installed;
+   // NEVER retry a filled honeypot through the legacy endpoint.
+   if(result.error?.code==='PGRST202'&&companyWebsite===''){
+    result=await supabase.rpc('request_appointment',bookingPayload);
+   }
+   if(result.error){
+    const message=String(result.error.message||'');
+    if(message.includes('TIME_UNAVAILABLE')||message.includes('DAY_FULL')){
+     setCalendarRefresh(n=>n+1);
+    }
+    setSubmitError(bookingFailureMessage(result.error,fr));
+    // Background availability polling must never erase this booking error.
+    return;
+   }
+   if(!result.data){
+    setSubmitError(bookingFailureMessage({code:'EMPTY_RESPONSE'},fr));
+    return;
+   }
+   setSuccess({id:result.data,day,time});
+   setTime(null);setAgreed(false);setCompanyWebsite('');
+   setLiveSlots(previous=>previous.filter(item=>item!==time));
+   setCalendarRefresh(n=>n+1);
+  }catch(err){
+   setSubmitError(bookingFailureMessage(err,fr));
+  }finally{
+   setSending(false);
+  }
  }
  const successRef=success?bookingReference(success.id,success.day,pad(Math.floor(success.time/60))+':'+pad(success.time%60)):'';
  const prettyDate=day?dateObj(day).toLocaleDateString(fr?'fr-CA':'en-CA',{weekday:'long',month:'long',day:'numeric',year:'numeric'}):'';
@@ -227,7 +277,7 @@ export default function CustomerBooking({language}){
       autoComplete="off" tabIndex={-1} value={companyWebsite}
       onChange={e=>setCompanyWebsite(e.target.value)}/>
   </div>
-  <label>{fr?'Nom complet':'Full name'}<input required maxLength={100} minLength={2} autoComplete="name" value={clientName} onChange={e=>setClientName(e.target.value)}/></label><label>{fr?'Courriel':'Email'}<input type="email" required maxLength={254} autoComplete="email" value={clientEmail} onChange={e=>setClientEmail(e.target.value)}/></label><label>{fr?'Téléphone (facultatif)':'Phone (optional)'}<input type="tel" maxLength={35} autoComplete="tel" value={clientPhone} onChange={e=>setClientPhone(e.target.value)}/></label><label className="booking-agreement"><input type="checkbox" required checked={agreed} onChange={e=>setAgreed(e.target.checked)}/><span>{fr?"J'ai lu et j'accepte les politiques de réservation et d'annulation.":"I've read and agree to the booking and cancellation policies."}</span></label><p className="booking-notice">{fr?"Réservez au moins 24 heures à l’avance. Votre demande sera en attente d’approbation. Vous recevrez un courriel avec un lien pour consulter votre réservation.":"Please book at least 24 hours ahead. Your request will be pending approval. You'll receive an email with a private booking-status link."}</p><button type="submit" disabled={sending||!agreed}>{sending?(fr?'Envoi…':'Sending…'):(fr?'Demander le rendez-vous':'Request appointment')}</button></form></div>}
+  <label>{fr?'Nom complet':'Full name'}<input required maxLength={100} minLength={2} autoComplete="name" value={clientName} onChange={e=>setClientName(e.target.value)}/></label><label>{fr?'Courriel':'Email'}<input type="email" required maxLength={254} autoComplete="email" value={clientEmail} onChange={e=>setClientEmail(e.target.value)}/></label><label>{fr?'Téléphone (facultatif)':'Phone (optional)'}<input type="tel" maxLength={35} autoComplete="tel" value={clientPhone} onChange={e=>setClientPhone(e.target.value)}/></label><label className="booking-agreement"><input type="checkbox" required checked={agreed} onChange={e=>setAgreed(e.target.checked)}/><span>{fr?"J'ai lu et j'accepte les politiques de réservation et d'annulation.":"I've read and agree to the booking and cancellation policies."}</span></label><p className="booking-notice">{fr?"Réservez au moins 24 heures à l’avance. Votre demande sera en attente d’approbation. Vous recevrez un courriel avec un lien pour consulter votre réservation.":"Please book at least 24 hours ahead. Your request will be pending approval. You'll receive an email with a private booking-status link."}</p><button type="submit" disabled={sending||!agreed}>{sending?(fr?'Envoi…':'Sending…'):(fr?'Demander le rendez-vous':'Request appointment')}</button>{submitError&&<p className="booking-submit-error" role="alert">{submitError}</p>}</form></div>}
   {success&&<div className="booking-summary" role="status"><strong>{fr?'Demande reçue':'Request received'}</strong><p>{fr?"Votre demande est enregistrée et en attente d'approbation par Lynna.":"Your appointment request is saved and awaiting Lynna’s approval."}</p><p className="booking-notice">{fr?"Conservez votre référence et votre lien privé de réservation.":"Save your reference and private booking link."}</p><div className="booking-friendly-reference"><span>{fr?'Votre référence':'Your reference'}</span><strong>{successRef}</strong></div><div className="booking-deposit-next-step">
  <strong>{fr?'Acompte de 20 $ CAD':'$20 CAD deposit'}</strong>
  <p>{fr?'Pour réserver votre rendez-vous, envoyez votre acompte par Virement Interac à :':'To secure your appointment, send your deposit by Interac e-Transfer to:'}</p>
