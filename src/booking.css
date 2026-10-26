@@ -288,3 +288,18 @@
   opacity:0!important;
   pointer-events:none!important;
 }
+
+/* Keep submission errors within the visible booking form; calendar background
+   refreshes cannot dismiss this message or make failed submissions look idle. */
+.customer-booking .booking-submit-error{
+  margin:13px 0 0;
+  border:1px solid #ff9cb0;
+  background:#421827;
+  color:#ffe0e8;
+  border-radius:7px;
+  padding:13px 14px;
+  font-size:13px;
+  line-height:1.6;
+  font-weight:600;
+  overflow-wrap:anywhere;
+}
