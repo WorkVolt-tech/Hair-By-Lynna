@@ -38,7 +38,7 @@ function bookingFailureMessage(error,fr){
   :'Unable to submit your booking. Please try again or contact Lynna. (Code: '+(code||'NETWORK')+')';
 }
 const clock=(n,lang)=>new Date(2026,0,1,Math.floor(n/60),n%60).toLocaleTimeString(lang==='fr'?'fr-CA':'en-CA',{hour:'numeric',minute:'2-digit'});
-function monthCells(month){const [y,m]=month.split('-').map(Number);const first=new Date(y,m-1,1);const lead=(first.getDay()+6)%7;const days=new Date(y,m,0).getDate();return Array.from({length:Math.ceil((days+lead)/7)*7},(_,i)=>{const n=i-lead+1;return n>=1&&n<=days?dateKey(new Date(y,m-1,n)):null})}
+function monthCells(month){const [y,m]=month.split('-').map(Number);const first=new Date(y,m-1,1);const lead=first.getDay();const days=new Date(y,m,0).getDate();return Array.from({length:Math.ceil((days+lead)/7)*7},(_,i)=>{const n=i-lead+1;return n>=1&&n<=days?dateKey(new Date(y,m-1,n)):null})}
 export default function CustomerBooking({language}){
  const fr=language==='fr';
  const [services,setServices]=useState([]),[windows,setWindows]=useState([]),[error,setError]=useState(''),[loading,setLoading]=useState(true);
@@ -268,7 +268,7 @@ export default function CustomerBooking({language}){
   <div className="booking-month"><button type="button" onClick={()=>changeMonth(-1)} aria-label={fr?'Mois précédent':'Previous month'}>‹</button><strong>{monthDate.toLocaleDateString(fr?'fr-CA':'en-CA',{month:'long',year:'numeric'})}</strong><button type="button" onClick={()=>changeMonth(1)} aria-label={fr?'Mois suivant':'Next month'}>›</button></div>
   {(!calendarReady||calendarBusy)&&!calendarError&&<p className="booking-calendar-message" role="status">{fr?'Vérification des dates disponibles…':'Checking available dates…'}</p>}
   {calendarError&&<div className="booking-calendar-message booking-calendar-error" role="alert">{calendarError} <button type="button" onClick={()=>setCalendarRefresh(n=>n+1)}>{fr?'Réessayer':'Retry'}</button></div>}
-  <div className="booking-days">{(fr?['L','M','M','J','V','S','D']:['M','T','W','T','F','S','S']).map((d,i)=><span className="booking-weekday" key={i}>{d}</span>)}{cells.map((d,i)=>{
+  <div className="booking-days">{(fr?['D','L','M','M','J','V','S']:['S','M','T','W','T','F','S']).map((d,i)=><span className="booking-weekday" key={i}>{d}</span>)}{cells.map((d,i)=>{
     if(!d)return <span key={'blank'+i}/>;
     const available=calendarReady&&bookableDays.includes(d)&&d>=todayMontreal;
     const published=windows.some(w=>w.day===d);
