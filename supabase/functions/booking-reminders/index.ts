@@ -42,96 +42,70 @@ type Appointment = {
   id: string; customer_name: string; customer_email: string;
   starts_at: string; ends_at: string; status: string;
   deposit_amount_cents: number | null; deposit_received_at: string | null;
-  reschedule_response: string | null;
+  reschedule_response: string | null; preferred_language: string | null;
   services: ServiceName | ServiceName[];
 };
 const money = (cents: number) =>
   new Intl.NumberFormat("en-CA", {style:"currency",currency:"CAD"}).format(cents/100);
 
 function buildEmail(a: Appointment) {
-  const service: ServiceName = Array.isArray(a.services) ? a.services[0] ?? null : a.services;
-  const name = a.customer_name;
-  const serviceEn = service?.name_en || service?.name_fr || "Braiding service";
-  const serviceFr = service?.name_fr || service?.name_en || "Service de coiffure";
-  const enTime = montrealTime(a.starts_at,"en"), frTime = montrealTime(a.starts_at,"fr");
-  const length = Math.max(0, Math.round((new Date(a.ends_at).getTime()-new Date(a.starts_at).getTime())/60000));
-  const enDuration = [Math.floor(length/60) ? Math.floor(length/60)+" hr"+(Math.floor(length/60)===1?"":"s") : "",
-    length%60 ? (length%60)+" min" : ""].filter(Boolean).join(" ");
-  const frDuration = [Math.floor(length/60) ? Math.floor(length/60)+" h" : "",
-    length%60 ? (length%60)+" min" : ""].filter(Boolean).join(" ");
-  const depositReceived = Boolean(a.deposit_received_at);
-  const depositAmount = money(a.deposit_amount_cents ?? 2000);
-  const ref = bookingReference(a.id,a.starts_at);
-  const link = website+"/?booking="+encodeURIComponent(a.id)+"&ref="+encodeURIComponent(ref)+"#booking-status";
-  const subject = "Hair by Lynna — Appointment reminder / Rappel de rendez-vous";
-  const enDeposit = depositReceived
-    ? "Deposit "+depositAmount+": received and confirmed."
-    : "Deposit "+depositAmount+": not yet confirmed. If you've already sent it, please do not send another payment.";
-  const frDeposit = depositReceived
-    ? "Dépôt de "+depositAmount+" : reçu et confirmé."
-    : "Dépôt de "+depositAmount+" : non encore confirmé. Si vous l'avez déjà envoyé, ne faites pas un deuxième virement.";
-  const textContent = [
-    "Hair by Lynna — Your appointment is coming up!",
-    "Hi "+name+",","",
-    "This is a reminder about your approved appointment in approximately 12 hours.",
-    "Hairstyle: "+serviceEn,
-    "Date and time (Montréal): "+enTime,
-    "Appointment address: "+approvedLocation,
-    "Estimated duration: "+enDuration,
-    enDeposit,
-    "Booking reference: "+ref,
-    "View your booking: "+link,
-    "The duration is an estimate. Keep your private booking link secure.",
-    "",
-    "—",
-    "Hair by Lynna — Rappel de rendez-vous",
-    "Bonjour "+name+",","",
-    "Votre rendez-vous confirmé est prévu dans environ 12 heures.",
-    "Coiffure : "+serviceFr,
-    "Date et heure (Montréal) : "+frTime,
-    "Adresse du rendez-vous : "+approvedLocation,
-    "Durée estimée : "+frDuration,
-    frDeposit,
-    "Référence : "+ref,
-    "Consulter votre rendez-vous : "+link,
-    "La durée est une estimation. Gardez votre lien de réservation privé."
+  const lang:"en"|"fr"=a.preferred_language==="fr"?"fr":"en";
+  const fr=lang==="fr";
+  const service: ServiceName=Array.isArray(a.services)?a.services[0]??null:a.services;
+  const name=fr?(service?.name_fr||service?.name_en||"Service de coiffure"):
+    (service?.name_en||service?.name_fr||"Braiding service");
+  const when=montrealTime(a.starts_at,lang);
+  const minutes=Math.max(0,Math.round((new Date(a.ends_at).getTime()-new Date(a.starts_at).getTime())/60000));
+  const duration=[
+    Math.floor(minutes/60)?Math.floor(minutes/60)+(fr?" h":" hr"+(Math.floor(minutes/60)===1?"":"s")):"",
+    minutes%60?minutes%60+" min":""
+  ].filter(Boolean).join(" ");
+  const amount=money(a.deposit_amount_cents??2000);
+  const paid=Boolean(a.deposit_received_at);
+  const ref=bookingReference(a.id,a.starts_at);
+  const link=website+"/?booking="+encodeURIComponent(a.id)+"&ref="+encodeURIComponent(ref)+"#booking-status";
+  const t=fr?{
+    subject:"Hair by Lynna — Rappel de rendez-vous",
+    hello:"Bonjour",intro:"Votre rendez-vous approuvé est prévu dans environ 12 heures.",
+    service:"Coiffure",date:"Date et heure (Montréal)",location:"Adresse du rendez-vous",
+    duration:"Durée estimée",reference:"Référence",button:"Consulter mon rendez-vous",
+    deposit:paid?"Dépôt de "+amount+" : reçu et confirmé.":
+      "Dépôt de "+amount+" : non encore confirmé. Si vous l'avez déjà envoyé, ne faites pas un deuxième virement.",
+    foot:"La durée est une estimation. Utilisez votre courriel de réservation pour consulter le statut et gardez votre lien privé."
+  }:{
+    subject:"Hair by Lynna — Appointment reminder",
+    hello:"Hi",intro:"Your approved appointment is in approximately 12 hours.",
+    service:"Hairstyle",date:"Date and time (Montréal)",location:"Appointment address",
+    duration:"Estimated duration",reference:"Booking reference",button:"Check booking status",
+    deposit:paid?"Deposit "+amount+": received and confirmed.":
+      "Deposit "+amount+": not yet confirmed. If you've already sent it, please don't send another payment.",
+    foot:"Duration is an estimate. Use your booking email to check the status and keep your link private."
+  };
+  const details=[
+    [t.service,name],[t.date,when],[t.location,approvedLocation],
+    [t.duration,duration],[t.reference,ref]
+  ];
+  const textContent=[
+    t.subject,"",t.hello+" "+a.customer_name+",","",t.intro,"",
+    ...details.map(([k,v])=>k+": "+v),t.deposit,"",
+    t.button+": "+link,"",t.foot,"Hair by Lynna"
   ].join("\n");
-  const enSafe = escapeHtml(serviceEn), frSafe = escapeHtml(serviceFr);
-  const refSafe = escapeHtml(ref), linkSafe = escapeHtml(link);
-  const htmlContent = `<!doctype html><html><head><meta charset="utf-8"/></head>
-  <body style="margin:0;padding:22px 10px;background:#120c13;font-family:Arial,Helvetica,sans-serif;color:#fbeaf3;">
-    <div style="margin:0 auto;max-width:540px;background:#21121e;border:1px solid #b57495;border-radius:12px;padding:25px 20px;">
-      <img src="${logoUrl}" width="260" alt="Hair by Lynna" style="display:block;width:260px;max-width:100%;height:auto;margin:0 auto 22px;border:0;"/>
-      <h1 style="color:#f3b4d3;font-size:23px;margin:0 0 18px;line-height:1.3;">Appointment reminder / Rappel de rendez-vous</h1>
-      <p style="line-height:1.7;">Hi ${escapeHtml(name)},</p>
-      <p style="line-height:1.7;">Your <strong>approved appointment is in approximately 12 hours.</strong></p>
-      <div style="background:#311c2b;border:1px solid #855575;border-radius:8px;padding:16px 15px;line-height:1.85;">
-        <strong style="color:#ffcbe1;">${enSafe}</strong><br/>
-        ${escapeHtml(enTime)}<br/>
-        Appointment address: <strong>${escapeHtml(approvedLocation)}</strong><br/>
-        Estimated duration: <strong>${escapeHtml(enDuration)}</strong><br/>
-        ${escapeHtml(enDeposit)}<br/>
-        Reference: <strong>${refSafe}</strong>
-      </div>
-      <p style="font-size:12px;line-height:1.7;color:#e6bfd2;">The duration is an estimate. If you already sent the deposit, please don't send it again.</p>
-      <a href="${linkSafe}" style="display:inline-block;margin:12px 0 8px;background:#e9a2c4;color:#21121e;border-radius:7px;padding:14px 20px;font-weight:bold;text-decoration:none;">Check booking status</a>
-      <hr style="border:0;border-top:1px solid #70475c;margin:28px 0 22px;"/>
-      <h2 style="color:#f3b4d3;font-size:18px;margin:0 0 14px;">Rappel de rendez-vous</h2>
-      <p style="line-height:1.7;">Bonjour ${escapeHtml(name)},</p>
-      <p style="line-height:1.7;">Votre <strong>rendez-vous confirmé est prévu dans environ 12 heures.</strong></p>
-      <div style="background:#311c2b;border:1px solid #855575;border-radius:8px;padding:16px 15px;line-height:1.85;">
-        <strong style="color:#ffcbe1;">${frSafe}</strong><br/>
-        ${escapeHtml(frTime)}<br/>
-        Adresse du rendez-vous : <strong>${escapeHtml(approvedLocation)}</strong><br/>
-        Durée estimée : <strong>${escapeHtml(frDuration)}</strong><br/>
-        ${escapeHtml(frDeposit)}<br/>
-        Référence : <strong>${refSafe}</strong>
-      </div>
-      <a href="${linkSafe}" style="display:inline-block;margin:18px 0 8px;background:#e9a2c4;color:#21121e;border-radius:7px;padding:14px 20px;font-weight:bold;text-decoration:none;">Consulter ma réservation</a>
-      <p style="font-size:12px;line-height:1.6;color:#d7b3c5;margin-top:22px;">Use the booking email to view your private status link. / Utilisez votre courriel de réservation pour consulter votre statut.</p>
-    </div>
-  </body></html>`;
-  return {subject,textContent,htmlContent};
+  const lines=details.map(([k,v])=>escapeHtml(k)+": <strong>"+escapeHtml(v)+"</strong><br/>").join("");
+  const htmlContent=[
+    '<!doctype html><html lang="'+lang+'"><head><meta charset="utf-8"/></head>',
+    '<body style="margin:0;padding:22px 10px;background:#120c13;font-family:Arial,Helvetica,sans-serif;color:#fbeaf3;">',
+    '<div style="margin:0 auto;max-width:540px;background:#21121e;border:1px solid #b57495;border-radius:12px;padding:25px 20px;">',
+    '<img src="'+logoUrl+'" width="260" alt="Hair by Lynna" style="display:block;width:260px;max-width:100%;height:auto;margin:0 auto 22px;border:0;"/>',
+    '<h1 style="color:#f3b4d3;font-size:23px;margin:0 0 18px;line-height:1.3;">'+escapeHtml(t.subject)+'</h1>',
+    '<p>'+escapeHtml(t.hello)+' '+escapeHtml(a.customer_name)+',</p>',
+    '<p style="line-height:1.7;">'+escapeHtml(t.intro)+'</p>',
+    '<div style="background:#311c2b;border:1px solid #855575;border-radius:8px;padding:16px 15px;line-height:1.85;">'+lines+'</div>',
+    '<p style="line-height:1.7;">'+escapeHtml(t.deposit)+'</p>',
+    '<a href="'+escapeHtml(link)+'" style="display:inline-block;margin:12px 0 8px;background:#e9a2c4;color:#21121e;border-radius:7px;padding:14px 20px;font-weight:bold;text-decoration:none;">'+escapeHtml(t.button)+'</a>',
+    '<p style="font-size:12px;line-height:1.7;color:#d7b3c5;">'+escapeHtml(t.foot)+'</p>',
+    '<p>Hair by Lynna</p></div></body></html>'
+  ].join("");
+  return {subject:t.subject,textContent,htmlContent};
 }
 
 Deno.serve(async (request) => {
@@ -163,7 +137,7 @@ Deno.serve(async (request) => {
       // A booking may have been cancelled or rescheduled after the cron claim.
       // Query fresh state, and never send for a disputed reschedule.
       const {data:record,error:lookupError} = await db.from("appointments")
-        .select("id,customer_name,customer_email,starts_at,ends_at,status,reschedule_response,deposit_amount_cents,deposit_received_at,services(name_en,name_fr)")
+        .select("id,customer_name,customer_email,starts_at,ends_at,status,reschedule_response,deposit_amount_cents,deposit_received_at,preferred_language,services(name_en,name_fr)")
         .eq("id",reminder.appointment_id).maybeSingle();
       if(lookupError)throw Error("appointment lookup failed: "+(lookupError.code||"unknown"));
       const a = record as Appointment | null;

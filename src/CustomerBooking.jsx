@@ -220,9 +220,18 @@ export default function CustomerBooking({language}){
    p_policy_accepted:agreed
   };
   try{
+   // Saves the site language (EN/FR) on the booking so every customer email
+   // is sent in that language (migration 023, 9-argument endpoint).
    let result=await supabase.rpc('request_appointment',{
-    ...bookingPayload,p_company_website:companyWebsite
+    ...bookingPayload,p_company_website:companyWebsite,p_language:fr?'fr':'en'
    });
+   // Compatibility: if the 9-argument endpoint is unavailable, book without the
+   // language (emails default to English) rather than losing the booking.
+   if(result.error?.code==='PGRST202'){
+    result=await supabase.rpc('request_appointment',{
+     ...bookingPayload,p_company_website:companyWebsite
+    });
+   }
    // This compatibility fallback works only before SQL 021 is installed;
    // NEVER retry a filled honeypot through the legacy endpoint.
    if(result.error?.code==='PGRST202'&&companyWebsite===''){
