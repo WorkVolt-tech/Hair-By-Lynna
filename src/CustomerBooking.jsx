@@ -220,21 +220,13 @@ export default function CustomerBooking({language}){
    p_policy_accepted:agreed
   };
   try{
-   // The language is stored in the same database transaction as the booking,
-   // BEFORE the insert webhook generates the first email.
    let result=await supabase.rpc('request_appointment',{
-    ...bookingPayload,p_company_website:companyWebsite,p_language:language==='fr'?'fr':'en'
+    ...bookingPayload,p_company_website:companyWebsite
    });
-   // Safe gradual rollout: before migration 023 the 8-argument RPC still works.
-   // Never retry a request with a filled honeypot.
+   // This compatibility fallback works only before SQL 021 is installed;
+   // NEVER retry a filled honeypot through the legacy endpoint.
    if(result.error?.code==='PGRST202'&&companyWebsite===''){
-    result=await supabase.rpc('request_appointment',{
-     ...bookingPayload,p_company_website:companyWebsite
-    });
-    // Older test databases, before migration 021.
-    if(result.error?.code==='PGRST202'){
-     result=await supabase.rpc('request_appointment',bookingPayload);
-    }
+    result=await supabase.rpc('request_appointment',bookingPayload);
    }
    if(result.error){
     const message=String(result.error.message||'');
