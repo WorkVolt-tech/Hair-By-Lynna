@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
   if(!heading)return new Response("No notification needed",{status:200});
   const db=createClient(supabaseUrl,serviceKey,{auth:{persistSession:false}});
   const {data,error}=await db.from("appointments")
-    .select("id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,deposit_amount_cents,deposit_received_at,services(name_en)")
+    .select("id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,deposit_amount_cents,deposit_received_at,deposit_reported_sent_at,services(name_en)")
     .eq("id",current.id).single();
   if(error||!data){console.error("telegram-booking: appointment lookup failed",{code:error?.code,message:error?.message});return new Response("Appointment lookup failed",{status:500});}
   const serviceName=Array.isArray(data.services)?data.services[0]?.name_en:(data.services as {name_en?:string}|null)?.name_en;
@@ -66,6 +66,7 @@ Deno.serve(async (req) => {
        reservedMinutes%60?(reservedMinutes%60)+" "+(reservedMinutes%60===1?"min":"mins"):""].filter(Boolean).join(" ")
     : null;
   const depositPaid=Boolean(data.deposit_received_at);
+  const depositReported=Boolean(data.deposit_reported_sent_at);
   const depositAmount=new Intl.NumberFormat("en-CA",{style:"currency",currency:"CAD"}).format((data.deposit_amount_cents??2000)/100);
   const depositLabel=depositPaid?"Received":"Not received";
   const transferEmail="xhair.dreams@gmail.com";
@@ -74,7 +75,7 @@ Deno.serve(async (req) => {
   const approvedLocation="12151 Place Philippe-Lebon, Montréal, QC H1E 1L6";
   const showApprovedLocation=data.status==="approved";
   const activeAppointment=data.status==="pending"||data.status==="approved";
-  const paymentInstructions=activeAppointment&&!depositPaid;
+  const paymentInstructions=activeAppointment&&!depositPaid&&!depositReported;
   const lines=[
     heading,
     "",
@@ -110,6 +111,7 @@ Deno.serve(async (req) => {
     const subject=subjects[event]||"Hair by Lynna — Appointment update";
     const reference=shortRef(data.id,data.starts_at);
     const privateLink="https://hair-by-lynna.pages.dev/?booking="+encodeURIComponent(data.id)+"&ref="+encodeURIComponent(reference)+"#booking-status";
+    const reportLink=privateLink.replace("#booking-status","&deposit=sent#booking-status");
     const mailText=[
       subject,"", "Hi "+data.customer_name+",",
       "Service: "+(serviceName??"Service"),
@@ -118,9 +120,11 @@ Deno.serve(async (req) => {
       ...(durationEstimate?["Estimated duration: "+durationEstimate]:[]),
       "Status: "+data.status,
       ...(showApprovedLocation?["Appointment address / Adresse du rendez-vous: "+approvedLocation]:[]),
-      "Deposit: "+depositAmount+" — "+depositLabel,
+      "Deposit: "+depositAmount+" — "+(depositPaid?"Received":depositReported?"Customer reported sent; Lynna verification pending":depositLabel),
       ...(event==="deposit_received"?["We have confirmed receipt of your deposit. It will be deducted from your final bill."]:[]),
       ...(event==="deposit_unconfirmed"?["Your deposit confirmation was corrected. If you already transferred the deposit, please contact Lynna before sending another payment."]:[]),
+      ...(depositReported?["You reported sending your Interac deposit. Lynna will verify it manually. Please do not send another payment."]:[]),
+      ...(paymentInstructions?["Already sent your deposit? Report it here / Dépôt envoyé? Déclarez-le ici: "+reportLink]:[]),
       ...(paymentInstructions?["Interac e-Transfer: "+transferEmail,
         "Include your booking reference in the e-Transfer message. Lynna will manually confirm the payment after checking her account.",
         "If you've already sent it, please do not send it again. Wait for Lynna's confirmation."]:[]),
@@ -148,8 +152,10 @@ Deno.serve(async (req) => {
        ${rescheduled?'<p style="color:#ffd6e9;font-weight:bold;">Please confirm the new appointment time or let Lynna know if you cannot attend, using the link below.</p>':''}
        ${event==="deposit_received"?'<p style="color:#ffcbe1;font-weight:bold;">Your deposit has been received and will be deducted from the final bill. Thank you!</p>':''}
        ${event==="deposit_unconfirmed"?'<p style="color:#ffcbe1;">Your deposit confirmation has been corrected. If you already sent the transfer, contact Lynna before sending another payment.</p>':''}
+       ${depositReported?'<p style="color:#ffd6e9;font-weight:bold;">You reported sending the deposit / Dépôt déclaré envoyé. Lynna will verify the Interac payment before confirming receipt.</p>':''}
        ${paymentInstructions?'<div style="padding:15px;margin:14px 0;border-radius:8px;border:1px solid #b57495;background:#311c2b;"><strong style="color:#ffcbe1;">Pay deposit by Interac e-Transfer</strong><p>Send '+escapeHtml(depositAmount)+' to <strong>'+escapeHtml(transferEmail)+'</strong>. Add your booking reference to the transfer message.</p><p style="font-size:12px;">Lynna will verify the transfer manually. If you already sent it, do not send another; wait for confirmation.</p></div>':''}
        ${event==="reschedule_needs_contact"?'<p>Lynna has been informed that the proposed time does not work for you. She can follow up to arrange another time. Your booking remains active.</p>':''}
+       ${paymentInstructions?'<p style="font-size:13px;line-height:1.6;margin:12px 0 4px;">Already sent your deposit? / Vous avez envoyé votre dépôt?</p><a href="'+escapeHtml(reportLink)+'" style="display:inline-block;background:#f6bdd9;color:#271323;padding:13px 17px;border-radius:7px;text-decoration:none;font-weight:bold;margin:5px 0 12px;">I’ve sent my deposit / J’ai envoyé mon dépôt</a><p style="font-size:12px;color:#d3aec0;">Open the link, verify your booking email, then report the transfer. Lynna still checks Interac manually.</p>':''}
        <a href="${escapeHtml(privateLink)}" style="display:inline-block;background:#e99ec2;color:#21121e;padding:15px 22px;border-radius:7px;text-decoration:none;font-weight:bold;margin:12px 0;">${rescheduled?'Respond to new appointment time':'Check booking status'}</a>
        ${durationEstimate?'<p style="font-size:12px;color:#d3aec0;line-height:1.5;">The duration is an estimate and may vary depending on your hair and styling needs.</p>':''}
        <p style="font-size:12px;color:#d3aec0;line-height:1.5;">Use the same email you booked with to view your status. Keep this link private.</p>
