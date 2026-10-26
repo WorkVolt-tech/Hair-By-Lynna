@@ -63,34 +63,25 @@ Deno.serve(async req=>{
     const start=new Date(Date.UTC(Number(year),Number(month)-1,Number(day)-1)).toISOString();
     const end=new Date(Date.UTC(Number(year),Number(month)-1,Number(day)+2)).toISOString();
     const {data:matches,error:lookupError}=await db.from("appointments")
-      .select("id,customer_email,starts_at,preferred_language")
+      .select("id,customer_email,starts_at")
       .gte("starts_at",start).lt("starts_at",end).limit(500);
     if(lookupError){console.error("booking-status: reference lookup failed",lookupError.code);return json({error:"Status-link email temporarily unavailable."},503)}
     const match=(matches||[]).find(a=>a.customer_email?.trim().toLowerCase()===email&&referenceFor(a.id,a.starts_at)===reference);
     if(match){
       const link=origin+"/?booking="+encodeURIComponent(match.id)+"&ref="+encodeURIComponent(reference)+"#booking-status";
-      const lang=match.preferred_language==="fr"?"fr":"en";
-      const fr=lang==="fr";
-      const subject=fr?"Hair by Lynna — Votre lien privé de réservation":
-        "Hair by Lynna — Your private booking status link";
-      const intro=fr?"Votre référence de réservation : ":"Your booking reference: ";
-      const openText=fr?"Ouvrez votre lien privé pour consulter le statut : ":
-        "Open your private booking status link: ";
-      const helper=fr?"Utilisez le même courriel que lors de votre réservation. Gardez ce lien privé.":
-        "Enter the same booking email to view the appointment. Keep this link private.";
-      const button=fr?"Consulter ma réservation":"Check booking status";
-      const text=[subject,"",intro+reference,openText+link,"",helper].join("\n");
-      const html='<html lang="'+lang+'"><body style="font-family:Arial,sans-serif;background:#120c13;color:#f9e8f2;padding:28px;">'+
+      const text="Hair by Lynna — Booking status\n\nYour reference: "+reference+
+        "\nOpen your private status link: "+link+
+        "\n\nEnter the same booking email to view the appointment. Keep this link private.";
+      const html='<html><body style="font-family:Arial,sans-serif;background:#120c13;color:#f9e8f2;padding:28px;">'+
         '<div style="max-width:480px;margin:auto;background:#261421;border:1px solid #c888a7;border-radius:12px;padding:28px;">'+
-        '<img src="https://hair-by-lynna.pages.dev/images/hair-by-lynna-logo.png" alt="Hair by Lynna" width="260" style="display:block;width:260px;max-width:100%;height:auto;margin:0 auto 22px;border:0;"/>'
-        +'<p>'+safeHtml(intro)+'</p><h2 style="color:#ffd7e9;">'+safeHtml(reference)+'</h2>'+
-        '<a style="display:inline-block;padding:14px 21px;background:#dda0bc;border-radius:7px;color:#1b0d16;text-decoration:none;font-weight:bold;" href="'+safeHtml(link)+'">'+safeHtml(button)+'</a>'+
-        '<p style="font-size:13px;">'+safeHtml(helper)+'</p></div></body></html>';
+        '<img src="https://hair-by-lynna.pages.dev/images/hair-by-lynna-logo.png" alt="Hair by Lynna" width="260" style="display:block;width:260px;max-width:100%;height:auto;margin:0 auto 22px;border:0;outline:none;text-decoration:none;" /><p>Your booking reference:</p><h2 style="color:#ffd7e9;">'+safeHtml(reference)+'</h2>'+
+        '<a style="display:inline-block;padding:14px 21px;background:#dda0bc;border-radius:7px;color:#1b0d16;text-decoration:none;font-weight:bold;" href="'+safeHtml(link)+'">Check booking status</a>'+
+        '<p style="font-size:13px;">Enter your booking email to check your appointment. Keep this link private.</p></div></body></html>';
       try{
         const mail=await fetch("https://api.brevo.com/v3/smtp/email",{
           method:"POST",headers:{"Content-Type":"application/json","api-key":brevoKey,"accept":"application/json"},
           body:JSON.stringify({sender:{email:sender,name:"Hair by Lynna"},replyTo:{email:"xhair.dreams@gmail.com",name:"Lynna"},
-            to:[{email}],subject,textContent:text,htmlContent:html})
+            to:[{email}],subject:"Hair by Lynna — Your private booking status link",textContent:text,htmlContent:html})
         });
         if(!mail.ok)console.error("booking-status: Brevo failed",mail.status);
       }catch(e){console.error("booking-status: status link email network failure",String(e))}
