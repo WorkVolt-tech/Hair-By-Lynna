@@ -76,3 +76,24 @@ h1.hero-title{margin:0;align-items:center}
 .selfies-art-rule{position:relative;width:95%;height:3px;border-radius:5px;background:#ffb8d9;box-shadow:0 0 5px #ffc2de,0 0 13px #f985bb,0 0 23px #d9509a}
 .selfies-art-bow{position:absolute;z-index:2;width:118px;height:96px;left:50%;top:50%;transform:translate(-50%,-50%);overflow:visible;filter:drop-shadow(0 0 8px #f38dbc) drop-shadow(0 0 13px #d45e9b)}
 @media(max-width:500px){.selfies-panel{padding:52px 14px 80px}.selfies-art{padding-top:30px;margin-bottom:46px}.selfies-art-heart{top:-54px}.selfies-art-script{margin-bottom:35px}.selfies-art-bow{width:103px;height:84px}}
+
+/* Bilingual deposit timing and booking confirmation policy. */
+.policy-item .policy-text{min-width:0;flex:1}
+.policy-item .deposit-policy-rules{
+  margin:16px 0 0;
+  padding-left:22px;
+  list-style:disc;
+  color:#e9dce5;
+}
+.policy-item .deposit-policy-rules li{
+  padding-left:4px;
+  margin:0 0 10px;
+  font-size:clamp(12px,1.5vw,14px);
+  line-height:1.75;
+  letter-spacing:.015em;
+}
+.policy-item .deposit-policy-rules li::marker{color:#e7a0c3}
+@media(max-width:540px){
+  .policy-item .deposit-policy-rules{padding-left:18px;margin-top:12px}
+  .policy-item .deposit-policy-rules li{font-size:12px;line-height:1.7}
+}
