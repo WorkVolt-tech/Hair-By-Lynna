@@ -90,16 +90,36 @@ Deno.serve(async req=>{
   }
 
   const action=body.action??"check";
-  if(action!=="check"&&action!=="respond_reschedule")return json({error:"Invalid request"},400);
+  if(action!=="check"&&action!=="respond_reschedule"&&action!=="report_deposit_sent")return json({error:"Invalid request"},400);
   const id=typeof body.id==="string"?body.id.trim():"";
   if(!idPattern.test(id))return json({error:"Open the private booking link from your email."},400);
-  const fields="id,customer_email,starts_at,ends_at,status,services(name_en,name_fr),reschedule_response,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_revision,deposit_amount_cents,deposit_received_at";
+  const fields="id,customer_email,starts_at,ends_at,status,services(name_en,name_fr),reschedule_response,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_revision,deposit_amount_cents,deposit_received_at,deposit_due_at,deposit_reported_sent_at";
   const {data,error}=await db.from("appointments").select(fields).eq("id",id).maybeSingle();
   if(error){console.error("booking-status: appointment lookup failed",error.code);return json({error:"Booking status temporarily unavailable."},503)}
   if(!data||data.customer_email?.trim().toLowerCase()!==email)
     return json({error:"Booking not found. Check the email used when booking."},404);
 
   let appointment=data;
+  if(action==="report_deposit_sent"){
+    // Customer reports a transfer, not proof that money arrived. This service
+    // role-only RPC never sets deposit_received_at. Repeated clicks are safe.
+    if(data.deposit_received_at)return json({error:"Lynna has already confirmed this deposit."},409);
+    if(!["pending","approved"].includes(data.status))
+      return json({error:"This booking is no longer active."},409);
+    const {data:reported,error:reportError}=await db.rpc("customer_report_deposit_sent",{
+      p_appointment_id:id,p_booking_email:email
+    });
+    if(reportError){
+      console.error("booking-status: report deposit failed",reportError.code);
+      return json({error:"Unable to record the deposit report. Please try again."},503);
+    }
+    if(!reported)return json({error:"The booking has changed. Please check again."},409);
+    // Read fresh status, including any simultaneous manual confirmation.
+    const {data:updated,error:refreshError}=await db.from("appointments")
+      .select(fields).eq("id",id).maybeSingle();
+    if(refreshError||!updated)return json({error:"Please refresh your booking status."},503);
+    appointment=updated;
+  }
   if(action==="respond_reschedule"){
     const reply=body.response;
     const revision=body.revision;
@@ -127,5 +147,7 @@ Deno.serve(async req=>{
     reschedule_previous_ends_at:appointment.reschedule_previous_ends_at,
     reschedule_revision:appointment.reschedule_revision,
     deposit_amount_cents:appointment.deposit_amount_cents,
-    deposit_received_at:appointment.deposit_received_at});
+    deposit_received_at:appointment.deposit_received_at,
+    deposit_due_at:appointment.deposit_due_at,
+    deposit_reported_sent_at:appointment.deposit_reported_sent_at});
 });
