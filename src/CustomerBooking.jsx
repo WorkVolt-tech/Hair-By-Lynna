@@ -44,6 +44,7 @@ export default function CustomerBooking({language}){
  const [services,setServices]=useState([]),[windows,setWindows]=useState([]),[error,setError]=useState(''),[loading,setLoading]=useState(true);
  const [serviceId,setServiceId]=useState(''),[day,setDay]=useState(''),[time,setTime]=useState(null);
  const [liveSlots,setLiveSlots]=useState([]),[slotsBusy,setSlotsBusy]=useState(false),[slotsReady,setSlotsReady]=useState(false);
+ const [slotsError,setSlotsError]=useState(''),[slotsRetry,setSlotsRetry]=useState(0);
  const [clientName,setClientName]=useState(''),[clientEmail,setClientEmail]=useState(''),[clientPhone,setClientPhone]=useState(''),[agreed,setAgreed]=useState(false),[sending,setSending]=useState(false),[success,setSuccess]=useState('');
  const [changePulse,setChangePulse]=useState(0);
  const [submitError,setSubmitError]=useState('');
@@ -157,20 +158,33 @@ export default function CustomerBooking({language}){
  }return result},[service,windows,minBookingTime]);
  useEffect(()=>{
   let live=true,loadingSlots=false;
-  setLiveSlots([]);setSlotsReady(false);
+  setLiveSlots([]);setSlotsReady(false);setSlotsError('');
   if(!supabase||!serviceId||!day)return;
   async function refreshSlots(){
    if(!live||loadingSlots)return;
    loadingSlots=true;setSlotsBusy(true);
    try{
-    const {data,error}=await supabase.rpc('public_booking_slots',{p_service_id:serviceId,p_day:day});
+    const {data,error}=await supabase.rpc('public_booking_slots',{
+     p_service_id:serviceId,p_day:day
+    });
     if(!live)return;
-    if(error){setError(fr?'Les heures exactes ne sont pas disponibles pour le moment.':'Exact appointment times are not available right now.')}
-    else{
+    if(error){
+     setSlotsReady(false);
+     const code=String(error.code||'');
+     setSlotsError(fr
+      ?'Impossible de charger les heures de ce jour. Réessayez ou contactez Lynna.'+(code?' (Code : '+code+')':'')
+      :'Could not load appointment times. Try again or contact Lynna.'+(code?' (Code: '+code+')':''));
+    }else{
      const available=[...new Set((data||[]).map(x=>mins(x.slot_time)))].sort((a,b)=>a-b);
-     setLiveSlots(available);setSlotsReady(true);
+     setLiveSlots(available);setSlotsReady(true);setSlotsError('');
      setTime(selected=>selected!==null&&!available.includes(selected)?null:selected);
-     setError('');
+    }
+   }catch(err){
+    if(live){
+     setSlotsReady(false);
+     setSlotsError(fr
+      ?'Connexion aux horaires impossible. Veuillez réessayer.'
+      :'Unable to connect to appointment times. Please retry.');
     }
    }finally{loadingSlots=false;if(live)setSlotsBusy(false)}
   }
@@ -180,7 +194,7 @@ export default function CustomerBooking({language}){
   document.addEventListener('visibilitychange',onReturn);
   const timer=window.setInterval(()=>{if(document.visibilityState==='visible')refreshSlots()},5000);
   return()=>{live=false;clearInterval(timer);window.removeEventListener('focus',onReturn);document.removeEventListener('visibilitychange',onReturn)};
- },[serviceId,day,language,changePulse]);
+ },[serviceId,day,language,changePulse,slotsRetry]);
  const cells=useMemo(()=>monthCells(month),[month]);
  function changeMonth(direction){
   const [y,m]=month.split('-').map(Number);const next=new Date(y,m-1+direction,1);
@@ -269,7 +283,7 @@ export default function CustomerBooking({language}){
       {Number(d.slice(-2))}
     </button>;
   })}</div>
-  {day&&<><h3>{fr?'Heures possibles':'Possible times'}</h3><p className="booking-date-label">{prettyDate} · {formatDuration(service.duration_minutes,language)}</p>{slotsBusy&&!slotsReady&&<p className="booking-notice">{fr?'Vérification des horaires…':'Checking actual availability…'}</p>}{slotsReady&&liveSlots.length===0&&<p className="booking-notice" role="status">{fr?'Aucune heure réservable pour ce service à cette date. Vérifiez que la plage publiée couvre toute la durée de la coiffure, que le rendez-vous commence dans au moins 24 heures et qu’aucun autre rendez-vous ne chevauche cette période.':'No bookable times for this service on that date. The published window must cover the full service duration, the appointment must be at least 24 hours ahead, and no existing booking can overlap.'}</p>}<div className="booking-time-grid">{(slotsReady?liveSlots:[]).map(t=><button type="button" key={t} className={time===t?'selected':''} onClick={()=>setTime(t)}>{clock(t,language)}</button>)}</div></>}
+  {day&&<><h3>{fr?'Heures possibles':'Possible times'}</h3><p className="booking-date-label">{prettyDate} · {formatDuration(service.duration_minutes,language)}</p>{slotsBusy&&!slotsReady&&!slotsError&&<p className="booking-notice">{fr?'Vérification des horaires…':'Checking actual availability…'}</p>}{slotsError&&<div className="booking-calendar-message booking-calendar-error" role="alert">{slotsError} <button type="button" onClick={()=>setSlotsRetry(n=>n+1)}>{fr?'Réessayer':'Retry'}</button></div>}{slotsReady&&liveSlots.length===0&&<p className="booking-notice" role="status">{fr?'Aucune heure réservable pour ce service à cette date. Vérifiez que la plage publiée couvre toute la durée de la coiffure, que le rendez-vous commence dans au moins 24 heures et qu’aucun autre rendez-vous ne chevauche cette période.':'No bookable times for this service on that date. The published window must cover the full service duration, the appointment must be at least 24 hours ahead, and no existing booking can overlap.'}</p>}<div className="booking-time-grid">{(slotsReady?liveSlots:[]).map(t=><button type="button" key={t} className={time===t?'selected':''} onClick={()=>setTime(t)}>{clock(t,language)}</button>)}</div></>}
   {day&&time!==null&&<div className="booking-summary"><strong>{fr?'Votre sélection':'Your selection'}</strong><p>{fr?service.name_fr:service.name_en}</p><p>{prettyDate} · {clock(time,language)}</p><form className="booking-details" onSubmit={submitRequest}>
   <div className="booking-honeypot" aria-hidden="true">
     <label htmlFor="booking-company-website">Website</label>
