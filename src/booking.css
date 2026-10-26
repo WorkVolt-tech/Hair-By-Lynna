@@ -326,3 +326,20 @@
   border-radius:4px;background:#34202b;color:#ffe0ec;
   line-height:1.65;font-size:13px;
 }
+
+/* Booking email delivery help: shown before submitting and prominently after success. */
+.customer-booking .booking-email-inbox-hint{
+  margin:12px 0 16px;padding:12px 14px;border-left:3px solid #dca1be;
+  border-radius:5px;background:#2b1925;color:#f9d8e8;
+  font-size:12px;line-height:1.75;
+}
+.customer-booking .booking-email-delivery-notice{
+  margin:18px 0;padding:16px 17px;border:1px solid #dca1be;
+  border-radius:9px;background:#321d2c;
+}
+.customer-booking .booking-email-delivery-notice strong{
+  display:block;color:#ffe4f0;font-size:15px;line-height:1.45;
+}
+.customer-booking .booking-summary .booking-email-delivery-notice p{
+  margin:9px 0 0;color:#f8e3ef;font-size:13px;line-height:1.7;
+}
