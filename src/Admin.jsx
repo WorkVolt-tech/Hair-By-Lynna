@@ -266,7 +266,7 @@ export default function Admin(){
   const hoursRemaining=(new Date(a.starts_at).getTime()-Date.now())/3600000;
   const late=hoursRemaining<12;
   const message=late
-   ? (lang==='fr'?'Annulation à moins de 12 heures : l’acompte sera perdu selon la politique. Confirmer l’annulation ?':'Cancellation within 12 hours: the deposit will be forfeited under the policy. Confirm cancellation?')
+   ? (lang==='fr'?'Annulation à moins de 12 heures : le dépôt sera perdu selon la politique. Confirmer l’annulation ?':'Cancellation within 12 hours: the deposit will be forfeited under the policy. Confirm cancellation?')
    : (lang==='fr'?'Annuler ce rendez-vous ?':'Cancel this appointment?');
   if(!(await confirmAction(message,{
     title:lang==='fr'?'Annuler le rendez-vous':'Cancel appointment',
@@ -301,7 +301,7 @@ export default function Admin(){
    await reload();
    if(appointmentView==='history')await loadHistory(true);
   }catch(ex){
-   setDepositDialogError(ex.message||(lang==='fr'?"Impossible de modifier l'état de l'acompte.":'Could not update deposit status.'));
+   setDepositDialogError(ex.message||(lang==='fr'?"Impossible de modifier l'état du dépôt.":'Could not update deposit status.'));
   }finally{setBusy(false)}
  }
  async function permanentlyDeleteAppointment(a){
@@ -492,16 +492,16 @@ export default function Admin(){
   ?<p className="admin-muted">{historyLoading?(lang==='fr'?'Chargement des archives…':'Loading history…'):(appointmentView==='history'?(lang==='fr'?'Aucun rendez-vous dans les archives.':'No archived appointments yet.'):t.noAppointments)}</p>
   :displayedAppointments.map(a=><div className={'admin-item appointment-record'+(a.status==='completed'?' appointment-record-completed':'')} key={a.id}><div><strong>{a.customer_name}</strong> · {a.customer_email}<p>{new Date(a.starts_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto'})} · {lang==='fr'?a.services?.name_fr:a.services?.name_en} · <strong className={'appointment-record-status status-'+a.status}>{a.status==='completed'?(lang==='fr'?'Terminé':'Completed'):a.status==='pending'?(lang==='fr'?'En attente':'Pending'):a.status==='approved'?(lang==='fr'?'Approuvé':'Approved'):a.status==='cancelled'?(lang==='fr'?'Annulé':'Cancelled'):(lang==='fr'?'Refusé':'Declined')}</strong></p><p className="appointment-reference">{lang==='fr'?'Référence':'Reference'} : <strong>{bookingReference(a.id,a.starts_at)}</strong></p>
  <div className={'appointment-deposit '+(a.deposit_received_at?'deposit-is-received':'deposit-is-pending')}>
-  <strong>{lang==='fr'?'Acompte':'Deposit'}: {new Intl.NumberFormat(lang==='fr'?'fr-CA':'en-CA',{style:'currency',currency:'CAD'}).format((a.deposit_amount_cents??2000)/100)} — {a.deposit_received_at?(lang==='fr'?'Reçu':'Received'):(lang==='fr'?'Non reçu':'Not received')}</strong>
+  <strong>{lang==='fr'?'Dépôt':'Deposit'}: {new Intl.NumberFormat(lang==='fr'?'fr-CA':'en-CA',{style:'currency',currency:'CAD'}).format((a.deposit_amount_cents??2000)/100)} — {a.deposit_received_at?(lang==='fr'?'Reçu':'Received'):(lang==='fr'?'Non reçu':'Not received')}</strong>
   {a.deposit_received_at?<p>{lang==='fr'?'Confirmé le':'Confirmed on'} {new Date(a.deposit_received_at).toLocaleString(lang==='fr'?'fr-CA':'en-CA',{timeZone:'America/Toronto',dateStyle:'medium',timeStyle:'short'})}</p>:<p>{lang==='fr'?'Vérifiez le virement Interac avant de confirmer.':'Verify the Interac e-Transfer in the bank before confirming.'}</p>}
   {role==='owner'&&  <button type="button" disabled={busy} onClick={()=>setDepositReceived(a,!a.deposit_received_at)}>
-   {a.deposit_received_at?(lang==='fr'?'Annuler la confirmation':'Undo deposit confirmation'):(lang==='fr'?'Confirmer la réception de l’acompte':'Confirm deposit received')}
+   {a.deposit_received_at?(lang==='fr'?'Annuler la confirmation':'Undo deposit confirmation'):(lang==='fr'?'Confirmer la réception du dépôt':'Confirm deposit received')}
   </button>}
  </div>
  {['approved','completed'].includes(a.status)&&<div className="appointment-payment">
    <div className="appointment-payment-heading"><Wallet size={17}/><strong>{lang==='fr'?'Suivi des paiements':'Payment summary'}</strong></div>
    <div className="appointment-payment-line"><span>{lang==='fr'?'Prix du service réservé':'Booked service price'}</span><strong>{asMoney(servicePrice(a))}</strong></div>
-   <div className="appointment-payment-line"><span>{lang==='fr'?'Acompte reçu':'Deposit received'}</span><strong>−{asMoney(confirmedDeposit(a))}</strong></div>
+   <div className="appointment-payment-line"><span>{lang==='fr'?'Dépôt reçu':'Deposit received'}</span><strong>−{asMoney(confirmedDeposit(a))}</strong></div>
    <div className="appointment-payment-line"><span>{lang==='fr'?'Paiement final enregistré':'Final payment recorded'}</span><strong>−{asMoney(finalPaid(a))}</strong></div>
    <div className="appointment-payment-line appointment-payment-due"><span>{lang==='fr'?'Solde restant':'Remaining balance'}</span><strong>{asMoney(remainingCents(a))}</strong></div>
    {overpaidCents(a)>0&&<p className="appointment-payment-overpaid" role="status">{lang==='fr'?'Paiement excédentaire enregistré':'Recorded payments exceed price'}: {asMoney(overpaidCents(a))} — {lang==='fr'?'vérifiez auprès du client':'review with customer'}</p>}
@@ -535,10 +535,10 @@ export default function Admin(){
      <div className="admin-deposit-dialog-icon" aria-hidden="true">
        {depositDialog.received?<BadgeCheck size={28}/>:<AlertCircle size={28}/>}
      </div>
-     <p className="admin-deposit-dialog-kicker">{lang==='fr'?'GESTION DES ACOMPTES':'DEPOSIT MANAGEMENT'}</p>
+     <p className="admin-deposit-dialog-kicker">{lang==='fr'?'GESTION DES DÉPÔTS':'DEPOSIT MANAGEMENT'}</p>
      <h2 id="admin-deposit-dialog-title">{depositDialog.received
        ?(lang==='fr'?'Confirmer la réception':'Confirm deposit received')
-       :(lang==='fr'?'Corriger le statut de l’acompte':'Correct deposit status')}</h2>
+       :(lang==='fr'?'Corriger le statut du dépôt':'Correct deposit status')}</h2>
      <div className="admin-deposit-dialog-details">
        <strong>{depositDialog.name}</strong>
        <span>{depositDialog.reference}</span>
@@ -546,14 +546,14 @@ export default function Admin(){
      </div>
      <p id="admin-deposit-dialog-description">{depositDialog.received
        ?(lang==='fr'?"Avez-vous vérifié que le virement Interac est bien arrivé dans votre compte bancaire ? Ne confirmez que l’argent réellement reçu. Le client recevra un courriel et son portail sera mis à jour.":"Have you verified that the Interac e-Transfer arrived in your bank account? Only confirm money you have actually received. The customer will be emailed and their booking status will update.")
-       :(lang==='fr'?"Cette action retirera la confirmation de l’acompte et avisera le client de la correction. Elle n’effectue pas de remboursement.":"This will remove the deposit confirmation and notify the customer of the correction. It does not issue a refund.")}</p>
+       :(lang==='fr'?"Cette action retirera la confirmation du dépôt et avisera le client de la correction. Elle n’effectue pas de remboursement.":"This will remove the deposit confirmation and notify the customer of the correction. It does not issue a refund.")}</p>
      {depositDialogError&&<p className="admin-deposit-dialog-error" role="alert">{depositDialogError}</p>}
      <div className="admin-deposit-dialog-actions">
        <button type="button" className="admin-deposit-dialog-secondary" disabled={busy}
          onClick={()=>depositDialogRef.current?.close()}>{lang==='fr'?'Annuler':'Cancel'}</button>
        <button type="button" className={depositDialog.received?'admin-deposit-dialog-primary':'admin-deposit-dialog-correction'} disabled={busy}
          onClick={confirmDepositChange}>{busy?(lang==='fr'?'Enregistrement…':'Saving…')
-            :depositDialog.received?(lang==='fr'?'Oui, acompte reçu':'Yes, deposit received')
+            :depositDialog.received?(lang==='fr'?'Oui, dépôt reçu':'Yes, deposit received')
               :(lang==='fr'?'Retirer la confirmation':'Remove confirmation')}</button>
      </div>
    </div>}
