@@ -51,10 +51,23 @@ Deno.serve(async (req) => {
   const heading=headings[event]||"";
   if(!heading)return new Response("No notification needed",{status:200});
   const db=createClient(supabaseUrl,serviceKey,{auth:{persistSession:false}});
-  const {data,error}=await db.from("appointments")
-    .select("id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,deposit_amount_cents,deposit_received_at,deposit_reported_sent_at,preferred_language,services(name_en,name_fr)")
-    .eq("id",current.id).single();
-  if(error||!data){console.error("telegram-booking: appointment lookup failed",{code:error?.code,message:error?.message});return new Response("Appointment lookup failed",{status:500});}
+  // Prefer the full schema, but never block all booking emails if a recent
+  // optional migration (deposit reporting / saved language) isn't installed yet.
+  // Falling back loses only those optional fields; the booking still gets its
+  // original email (English until migration 023 is deployed).
+  const fullFields="id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,deposit_amount_cents,deposit_received_at,deposit_reported_sent_at,preferred_language,services(name_en,name_fr)";
+  const stableFields="id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,deposit_amount_cents,deposit_received_at,services(name_en,name_fr)";
+  let {data,error}=await db.from("appointments").select(fullFields).eq("id",current.id).single();
+  if(error?.code==="42703" || error?.code==="PGRST204"){
+    console.warn("telegram-booking: optional booking columns missing. Apply migrations 022 and 023; sending fallback English notification.");
+    const fallback=await db.from("appointments").select(stableFields).eq("id",current.id).single();
+    data=fallback.data;
+    error=fallback.error;
+  }
+  if(error||!data){
+    console.error("telegram-booking: appointment lookup failed",{code:error?.code,message:error?.message});
+    return new Response("Appointment lookup failed",{status:500});
+  }
   const serviceInfo=Array.isArray(data.services)?data.services[0]:(data.services as {name_en?:string;name_fr?:string}|null);
   const serviceName=serviceInfo?.name_en??"Service";
   const lang:"en"|"fr"=data.preferred_language==="fr"?"fr":"en";
