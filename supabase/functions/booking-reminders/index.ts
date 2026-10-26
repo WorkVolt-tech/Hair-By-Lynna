@@ -1,7 +1,7 @@
 // Supabase Edge Function: booking-reminders
 // Called by Supabase Cron every 15 minutes, not by customer browsers.
 // Turn Verify JWT OFF in the Supabase dashboard; this function authenticates
-// every request with a separate, high-entropy X-Reminder-Secret header.
+// every request with a private header (X-Deposit-Secret or X-Reminder-Secret).
 // Requires migration 018 and BREVO_API_KEY, BOOKING_EMAIL_FROM,
 // BOOKING_REMINDER_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -22,6 +22,18 @@ function constantTimeEquals(a: string, b: string): boolean {
   let difference = 0;
   for (let i = 0; i < x.length; i++) difference |= x[i] ^ y[i];
   return difference === 0;
+}
+// Scheduled jobs authenticate with a private header. Accept the deposit job's
+// secret (X-Deposit-Secret / DEPOSIT_DEADLINES_SECRET, stored in Vault as
+// hair_by_lynna_deposit_cron_secret) or the original reminder secret.
+function cronAuthorized(req:Request):boolean{
+ const pairs:[string,string][]=[["X-Deposit-Secret","DEPOSIT_DEADLINES_SECRET"],["X-Reminder-Secret","BOOKING_REMINDER_SECRET"]];
+ for(const [header,envName] of pairs){
+  const expected=Deno.env.get(envName)||"";
+  const supplied=req.headers.get(header)||"";
+  if(expected.length>=24&&supplied&&constantTimeEquals(supplied,expected))return true;
+ }
+ return false;
 }
 function bookingReference(id: string, iso: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -110,10 +122,10 @@ function buildEmail(a: Appointment) {
 
 Deno.serve(async (request) => {
   if(request.method !== "POST")return new Response("Method not allowed",{status:405});
-  const expected = Deno.env.get("BOOKING_REMINDER_SECRET") || "";
-  const supplied = request.headers.get("X-Reminder-Secret") || "";
-  if(expected.length<24 || !constantTimeEquals(supplied,expected))
+  if(!cronAuthorized(request)){
+    console.error("booking-reminders: unauthorized scheduled call");
     return new Response("Unauthorized",{status:401});
+  }
 
   const url = Deno.env.get("SUPABASE_URL");
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");

@@ -1,6 +1,6 @@
 // Hair by Lynna — deposit deadline notifier. Deploy as "deposit-deadlines".
 // Schedule every minute using pg_cron/pg_net and the existing reminder secret.
-// Set Verify JWT OFF; this function checks X-Reminder-Secret before querying.
+// Set Verify JWT OFF; this function checks X-Deposit-Secret (or X-Reminder-Secret) before querying.
 // Customers can REPORT sending money but only Lynna verifies actual receipt.
 // Never automatically cancel bookings or set deposit_received_at.
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -30,6 +30,18 @@ function bookingReference(id:string,date:string){
  const v=(type:string)=>parts.find(p=>p.type===type)?.value||"";
  return "LYN-"+v("year")+v("month")+v("day")+"-"+v("hour")+v("minute")
   +"-"+id.replace(/-/g,"").slice(0,4).toUpperCase();
+}
+// Scheduled jobs authenticate with a private header. Accept the deposit job's
+// secret (X-Deposit-Secret / DEPOSIT_DEADLINES_SECRET, stored in Vault as
+// hair_by_lynna_deposit_cron_secret) or the original reminder secret.
+function cronAuthorized(req:Request):boolean{
+ const pairs:[string,string][]=[["X-Deposit-Secret","DEPOSIT_DEADLINES_SECRET"],["X-Reminder-Secret","BOOKING_REMINDER_SECRET"]];
+ for(const [header,envName] of pairs){
+  const expected=Deno.env.get(envName)||"";
+  const supplied=req.headers.get(header)||"";
+  if(expected.length>=24&&supplied&&sameSecret(supplied,expected))return true;
+ }
+ return false;
 }
 type Alert={notice_id:number;appointment_id:string;notice_kind:string;due_at:string};
 type Booking={
@@ -124,10 +136,10 @@ async function sendOwnerAlert(a:Booking,kind:string,token:string,chat:string){
 
 Deno.serve(async(request)=>{
  if(request.method!=="POST")return new Response("Method not allowed",{status:405});
- const expected=Deno.env.get("BOOKING_REMINDER_SECRET")||"";
- const supplied=request.headers.get("X-Reminder-Secret")||"";
- if(expected.length<24||!sameSecret(supplied,expected))
+ if(!cronAuthorized(request)){
+  console.error("deposit-deadlines: unauthorized scheduled call");
   return new Response("Unauthorized",{status:401});
+ }
  const url=Deno.env.get("SUPABASE_URL"),key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
  const brevoKey=Deno.env.get("BREVO_API_KEY"),sender=Deno.env.get("BOOKING_EMAIL_FROM");
  const telegramToken=Deno.env.get("TELEGRAM_BOT_TOKEN"),telegramChat=Deno.env.get("TELEGRAM_CHAT_ID");
