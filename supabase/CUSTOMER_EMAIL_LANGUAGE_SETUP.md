@@ -1,5 +1,7 @@
 # Hair by Lynna — emails in the customer's booking language
 
+> **CURRENT STATUS (email recovery):** The language-specific email rollout has been temporarily rolled back to restore the previous booking notification paths. **Do not follow the deployment steps below yet.** Booking emails, booking-status emails, and 12-hour reminders currently use the previous email templates; the deposit-deadlines email uses its earlier bilingual template. This document is retained as historical setup notes for a later, properly tested rollout. The `023_customer_email_language.sql` migration can remain installed; do not attempt to undo it or rerun it for email recovery.
+
 **Result:** Customers booking in **French receive emails fully in French**. Customers booking in **English receive emails fully in English**. The preference is stored when the booking request is created, and used for later confirmation, cancellations, reschedules, deposits, the 12-hour appointment reminder, the 5-minute deposit warning, and private status-link emails.
 
 The **owner's Telegram messages remain in English**.
