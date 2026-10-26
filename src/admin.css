@@ -465,3 +465,21 @@
 }
 
 .admin-page .appointment-record .appointment-payment .appointment-payment-overpaid{margin:10px 0;padding:10px;border-radius:6px;border:1px solid #da9b55;background:#39241a;color:#ffdfac;font-size:12px;font-weight:700}
+
+/* Deposit deadlines — the customer's claim is never bank confirmation. */
+.admin-page .deposit-deadline-status{
+  margin:10px 0;padding:12px 14px;
+  border:1px solid #866179;border-radius:7px;background:#291b26;
+  line-height:1.6;
+}
+.admin-page .deposit-deadline-status strong{display:block;font-size:13px}
+.admin-page .deposit-deadline-status p{font-size:12px;margin:4px 0 0}
+.admin-page .deposit-deadline-status.deposit-claimed{
+  background:#352735;border-color:#d5a1c4;color:#ffe5f1;
+}
+.admin-page .deposit-deadline-status.deposit-overdue{
+  background:#48212a;border-color:#e899a7;color:#ffe3e7;
+}
+.admin-page .deposit-deadline-status.deposit-waiting{
+  background:#261c27;border-color:#7e5b74;color:#ebc9db;
+}
