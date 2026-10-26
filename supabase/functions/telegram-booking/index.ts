@@ -69,6 +69,10 @@ Deno.serve(async (req) => {
   const depositAmount=new Intl.NumberFormat("en-CA",{style:"currency",currency:"CAD"}).format((data.deposit_amount_cents??2000)/100);
   const depositLabel=depositPaid?"Received":"Not received";
   const transferEmail="xhair.dreams@gmail.com";
+  // Only share the private service address with customers whose booking is
+  // approved. Never include it in an initial pending request or rejection.
+  const approvedLocation="12151 Place Philippe-Lebon, Montréal, QC H1E 1L6";
+  const showApprovedLocation=data.status==="approved";
   const activeAppointment=data.status==="pending"||data.status==="approved";
   const paymentInstructions=activeAppointment&&!depositPaid;
   const lines=[
@@ -113,6 +117,7 @@ Deno.serve(async (req) => {
       (rescheduled?"New proposed date & time: ":"Date & time: ")+monTime(data.starts_at),
       ...(durationEstimate?["Estimated duration: "+durationEstimate]:[]),
       "Status: "+data.status,
+      ...(showApprovedLocation?["Appointment address / Adresse du rendez-vous: "+approvedLocation]:[]),
       "Deposit: "+depositAmount+" — "+depositLabel,
       ...(event==="deposit_received"?["We have confirmed receipt of your deposit. It will be deducted from your final bill."]:[]),
       ...(event==="deposit_unconfirmed"?["Your deposit confirmation was corrected. If you already transferred the deposit, please contact Lynna before sending another payment."]:[]),
@@ -139,6 +144,7 @@ Deno.serve(async (req) => {
        Status: <strong>${escapeHtml(data.status)}</strong><br/>
        Deposit: <strong>${escapeHtml(depositAmount+" — "+depositLabel)}</strong><br/>
        Reference: <strong style="color:#f2b3d1;">${escapeHtml(reference)}</strong></p>
+       ${showApprovedLocation?'<div style="padding:15px;margin:14px 0;border-radius:8px;border:1px solid #b57495;background:#311c2b;"><strong style="color:#ffcbe1;">Appointment address / Adresse du rendez-vous</strong><p style="margin:8px 0 0;line-height:1.7;">'+escapeHtml(approvedLocation)+'</p><p style="font-size:12px;color:#d3aec0;margin:8px 0 0;">Please keep this location private. / Merci de garder cette adresse privée.</p></div>':''}
        ${rescheduled?'<p style="color:#ffd6e9;font-weight:bold;">Please confirm the new appointment time or let Lynna know if you cannot attend, using the link below.</p>':''}
        ${event==="deposit_received"?'<p style="color:#ffcbe1;font-weight:bold;">Your deposit has been received and will be deducted from the final bill. Thank you!</p>':''}
        ${event==="deposit_unconfirmed"?'<p style="color:#ffcbe1;">Your deposit confirmation has been corrected. If you already sent the transfer, contact Lynna before sending another payment.</p>':''}
