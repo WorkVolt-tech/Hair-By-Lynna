@@ -9,6 +9,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const logoUrl = "https://hair-by-lynna.pages.dev/images/hair-by-lynna-logo.png";
 const website = "https://hair-by-lynna.pages.dev";
 const replyToEmail = "xhair.dreams@gmail.com";
+// Only the reminder workflow for approved bookings uses this private address.
+const approvedLocation = "12151 Place Philippe-Lebon, Montréal, QC H1E 1L6";
 const escapeHtml = (value: unknown) => String(value ?? "")
   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
   .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -74,6 +76,7 @@ function buildEmail(a: Appointment) {
     "This is a reminder about your approved appointment in approximately 12 hours.",
     "Hairstyle: "+serviceEn,
     "Date and time (Montréal): "+enTime,
+    "Appointment address: "+approvedLocation,
     "Estimated duration: "+enDuration,
     enDeposit,
     "Booking reference: "+ref,
@@ -86,6 +89,7 @@ function buildEmail(a: Appointment) {
     "Votre rendez-vous confirmé est prévu dans environ 12 heures.",
     "Coiffure : "+serviceFr,
     "Date et heure (Montréal) : "+frTime,
+    "Adresse du rendez-vous : "+approvedLocation,
     "Durée estimée : "+frDuration,
     frDeposit,
     "Référence : "+ref,
@@ -104,6 +108,7 @@ function buildEmail(a: Appointment) {
       <div style="background:#311c2b;border:1px solid #855575;border-radius:8px;padding:16px 15px;line-height:1.85;">
         <strong style="color:#ffcbe1;">${enSafe}</strong><br/>
         ${escapeHtml(enTime)}<br/>
+        Appointment address: <strong>${escapeHtml(approvedLocation)}</strong><br/>
         Estimated duration: <strong>${escapeHtml(enDuration)}</strong><br/>
         ${escapeHtml(enDeposit)}<br/>
         Reference: <strong>${refSafe}</strong>
@@ -117,6 +122,7 @@ function buildEmail(a: Appointment) {
       <div style="background:#311c2b;border:1px solid #855575;border-radius:8px;padding:16px 15px;line-height:1.85;">
         <strong style="color:#ffcbe1;">${frSafe}</strong><br/>
         ${escapeHtml(frTime)}<br/>
+        Adresse du rendez-vous : <strong>${escapeHtml(approvedLocation)}</strong><br/>
         Durée estimée : <strong>${escapeHtml(frDuration)}</strong><br/>
         ${escapeHtml(frDeposit)}<br/>
         Référence : <strong>${refSafe}</strong>
