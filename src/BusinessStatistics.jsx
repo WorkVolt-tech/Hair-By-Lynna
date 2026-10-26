@@ -147,7 +147,7 @@ export default function BusinessStatistics({language}){
      hint:fr?'Marqués terminés par Lynna':'Manually marked completed'},
     {key:'received',icon:Wallet,label:fr?'Paiements enregistrés':'Recorded payments',
      value:money(stats.total_received_cents),
-     hint:fr?'Acomptes et soldes confirmés':'Confirmed deposits and final balances'},
+     hint:fr?'Dépôts et soldes confirmés':'Confirmed deposits and final balances'},
     {key:'outstanding',icon:CreditCard,label:fr?'Solde restant à recevoir':'Outstanding on completed services',
      value:money(stats.outstanding_completed_cents),
      hint:fr?`${stats.outstanding_completed_count??0} rendez-vous terminés avec solde`
@@ -246,11 +246,11 @@ export default function BusinessStatistics({language}){
           <p className="stats-panel-subtitle">{fr
             ?'Montants que Lynna a confirmés manuellement'
             :'Amounts manually confirmed as received by Lynna'}</p>
-          <div className="stats-payments-row"><span>{fr?'Acomptes reçus':'Deposits received'}</span><strong>{money(stats.deposit_received_cents)}</strong></div>
+          <div className="stats-payments-row"><span>{fr?'Dépôts reçus':'Deposits received'}</span><strong>{money(stats.deposit_received_cents)}</strong></div>
           <div className="stats-payments-row"><span>{fr?'Paiements finaux reçus':'Final payments received'}</span><strong>{money(stats.final_received_cents)}</strong></div>
           <div className="stats-payments-row stats-payments-total"><span>{fr?'Total enregistré':'Total recorded'}</span><strong>{money(stats.total_received_cents)}</strong></div>
           <p className="stats-panel-footnote">{fr
-            ?'Les acomptes incluent ceux des rendez-vous annulés ou refusés, s’ils sont encore marqués reçus. Les remboursements ne sont pas suivis.'
+            ?'Les dépôts incluent ceux des rendez-vous annulés ou refusés, s’ils sont encore marqués reçus. Les remboursements ne sont pas suivis.'
             :'Deposits include cancelled or declined bookings if still marked received. Refunds are not tracked.'}</p>
         </section>
       </div>
