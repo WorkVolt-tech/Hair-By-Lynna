@@ -16,6 +16,7 @@ export default function BookingStatus({ language, initialId = '', initialReferen
  const [record, setRecord] = useState(null);
  const [loading, setLoading] = useState(false);
  const [replyBusy, setReplyBusy] = useState(false);
+ const [reportBusy, setReportBusy] = useState(false);
  const [error, setError] = useState('');
  const [message, setMessage] = useState('');
  const words = { pending:fr?'En attente':'Pending',approved:fr?'Approuvé':'Approved',
@@ -68,11 +69,37 @@ export default function BookingStatus({ language, initialId = '', initialReferen
   }catch(ex){setError(ex.message||'Please try again.')}
   finally{setReplyBusy(false)}
  }
+ async function reportDepositSent() {
+  if (!privateId || !record || reportBusy || record.deposit_received_at ||
+      record.deposit_reported_sent_at || !['pending','approved'].includes(record.status))return;
+  setReportBusy(true);setError('');setMessage('');
+  try{
+   const {data,error:fnError}=await supabase.functions.invoke('booking-status',{
+    body:{action:'report_deposit_sent',id:privateId,email:email.trim()}
+   });
+   if(fnError){
+    let detail='';
+    try{if(fnError.context?.json)detail=(await fnError.context.json())?.error||''}catch{}
+    throw Error(detail||(fr?'Impossible d’enregistrer votre déclaration. Réessayez.':'Could not record your report. Please try again.'));
+   }
+   if(data?.error)throw Error(data.error);
+   if(!data?.deposit_reported_sent_at&&!data?.deposit_received_at)
+    throw Error(fr?'Veuillez vérifier le statut du rendez-vous et réessayer.':'Please check your booking status and try again.');
+   setRecord(data);
+   setMessage(fr
+    ?'Merci! Votre déclaration est enregistrée. Lynna vérifiera le virement Interac avant de confirmer la réception du dépôt.'
+    :'Thank you! Your report is recorded. Lynna will verify the Interac transfer before marking the deposit as received.');
+  }catch(ex){setError(ex.message||(fr?'Veuillez réessayer.':'Please try again.'))}
+  finally{setReportBusy(false)}
+ }
  const fmt = iso => new Date(iso).toLocaleString(fr?'fr-CA':'en-CA',{dateStyle:'full',timeStyle:'short',timeZone:'America/Toronto'});
  const shownReference=record?bookingReference(record.id,record.starts_at):(privateId?friendly:reference.trim().toUpperCase());
  return <section className="customer-booking booking-status-panel" id="booking-status" aria-labelledby="booking-status-title">
   <span className="booking-status-kicker">{fr?'Votre réservation':'YOUR BOOKING'}</span>
   <h3 id="booking-status-title">{fr?'Suivre mon rendez-vous':'Check your booking status'}</h3>
+  {privateId&&new URLSearchParams(window.location.search).get('deposit')==='sent'&&<p className="booking-deposit-hint" role="status">{fr
+   ?'Vous avez envoyé votre dépôt? Vérifiez votre réservation ci-dessous, puis cliquez sur « J’ai envoyé mon dépôt ».'
+   :'Already sent your deposit? Check your booking below, then click “I’ve sent my deposit”.'}</p>}
   <p className="booking-status-intro">{privateId
    ? (fr?'Entrez le courriel utilisé lors de votre réservation pour consulter votre statut.':'Enter the email address used for your booking to view its current status.')
    : (fr?'Entrez votre référence de réservation et votre courriel. Nous vous enverrons un lien sécurisé pour consulter votre statut.':'Enter your booking reference and email. We’ll send you a secure link to view your status.')}</p>
@@ -106,13 +133,21 @@ export default function BookingStatus({ language, initialId = '', initialReferen
    <p className="booking-status-estimate">{fr?'Durée estimée':'Estimated duration'}: <strong>{formatDuration(Math.round((new Date(record.ends_at).getTime()-new Date(record.starts_at).getTime())/60000),language)}</strong></p>
    <div className={'booking-deposit-status '+(record.deposit_received_at?'booking-deposit-paid':'booking-deposit-unpaid')}>
     <span className="booking-status-label">{fr?'Statut du dépôt':'Deposit status'}</span>
-    <strong>{new Intl.NumberFormat(fr?'fr-CA':'en-CA',{style:'currency',currency:'CAD'}).format((record.deposit_amount_cents??2000)/100)} — {record.deposit_received_at?(fr?'Reçu et confirmé':'Received and confirmed'):(fr?'Non encore reçu':'Not yet received')}</strong>
+    <strong>{new Intl.NumberFormat(fr?'fr-CA':'en-CA',{style:'currency',currency:'CAD'}).format((record.deposit_amount_cents??2000)/100)} — {record.deposit_received_at?(fr?'Reçu et confirmé':'Received and confirmed'):record.deposit_reported_sent_at?(fr?'Envoi déclaré — vérification en attente':'Reported sent — awaiting verification'):(fr?'Non encore reçu':'Not yet received')}</strong>
     {record.deposit_received_at
       ?<p>{fr?'Lynna a confirmé la réception de votre dépôt. Il sera déduit du montant final.':'Lynna has confirmed receipt of your deposit. It will be deducted from your final bill.'}</p>
       :(['pending','approved'].includes(record.status)&&<>
         <p>{fr?'Envoyez votre dépôt par Virement Interac à :':'Send your deposit by Interac e-Transfer to:'}</p>
         <a className="booking-deposit-email" href="mailto:xhair.dreams@gmail.com">xhair.dreams@gmail.com</a>
         <p>{fr?'Inscrivez votre référence de réservation dans le message du virement. Lynna confirmera la réception après vérification. Si vous avez déjà payé, ne renvoyez pas un deuxième virement.':'Include your booking reference in the transfer message. Lynna will confirm after verifying the payment. If you have already paid, do not send it a second time.'}</p>
+        {record.deposit_reported_sent_at
+         ?<p className="booking-deposit-reported" role="status">{fr
+          ?'Vous avez indiqué avoir envoyé le dépôt. Le rappel de paiement ne sera pas envoyé. Lynna doit encore vérifier le virement.'
+          :'You reported sending the deposit. The payment warning will be suppressed. Lynna must still verify the transfer.'}</p>
+         :record.deposit_due_at&&<button type="button" className="booking-deposit-report-button" disabled={reportBusy}
+           onClick={reportDepositSent}>{reportBusy
+            ?(fr?'Enregistrement…':'Saving…')
+            :(fr?'J’ai envoyé mon dépôt':'I’ve sent my deposit')}</button>}
        </>)}
    </div>
    {record.status==='approved' && record.reschedule_response==='pending' && <div className="booking-reschedule-response">
