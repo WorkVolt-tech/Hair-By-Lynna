@@ -78,6 +78,7 @@ h1.hero-title{margin:0;align-items:center}
 @media(max-width:500px){.selfies-panel{padding:52px 14px 80px}.selfies-art{padding-top:30px;margin-bottom:46px}.selfies-art-heart{top:-54px}.selfies-art-script{margin-bottom:35px}.selfies-art-bow{width:103px;height:84px}}
 
 /* Bilingual deposit timing and booking confirmation policy. */
+.policy-item.deposit-policy-item h3{letter-spacing:.11em;line-height:1.35;overflow-wrap:anywhere}
 .policy-item .policy-text{min-width:0;flex:1}
 .policy-item .deposit-policy-rules{
   margin:16px 0 0;
