@@ -303,3 +303,26 @@
   font-weight:600;
   overflow-wrap:anywhere;
 }
+
+/* Self-reported Interac payment stays distinct from owner-confirmed receipt. */
+.customer-booking .booking-deposit-report-button{
+  display:inline-flex;align-items:center;justify-content:center;
+  margin:14px 0 4px;padding:12px 17px;
+  border-radius:7px;border:1px solid #f8c2de;
+  color:#24101e;background:#f2afd0;
+  font-size:13px;font-weight:750;cursor:pointer;
+  min-height:44px;
+}
+.customer-booking .booking-deposit-report-button:hover:not(:disabled){background:#ffd1e6}
+.customer-booking .booking-deposit-report-button:disabled{opacity:.65;cursor:progress}
+.customer-booking .booking-deposit-hint{
+  margin:12px 0 18px;padding:12px 15px;
+  border:1px solid #a87391;background:#301b2b;
+  border-radius:7px;color:#ffe1ef;
+  font-size:13px;line-height:1.6;
+}
+.customer-booking .booking-deposit-reported{
+  padding:12px 14px;border-left:3px solid #f2afd0;
+  border-radius:4px;background:#34202b;color:#ffe0ec;
+  line-height:1.65;font-size:13px;
+}
