@@ -8,8 +8,8 @@ const chatId = Deno.env.get("TELEGRAM_CHAT_ID");
 const secret = Deno.env.get("BOOKING_WEBHOOK_SECRET");
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const escapeHtml = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g,"&quot;");
-const monTime = (iso: string,lang:"en"|"fr"="en") => new Intl.DateTimeFormat(lang==="fr"?"fr-CA":"en-CA", {timeZone:"America/Toronto",dateStyle:"full",timeStyle:"short"}).format(new Date(iso));
+const escapeHtml = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const monTime = (iso: string) => new Intl.DateTimeFormat("en-CA", {timeZone:"America/Toronto",dateStyle:"full",timeStyle:"short"}).format(new Date(iso));
 function shortRef(id: string, iso: string) {
   const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Toronto",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(iso));
   const val=(part:string)=>parts.find(p=>p.type===part)?.value??"";
@@ -51,27 +51,11 @@ Deno.serve(async (req) => {
   const heading=headings[event]||"";
   if(!heading)return new Response("No notification needed",{status:200});
   const db=createClient(supabaseUrl,serviceKey,{auth:{persistSession:false}});
-  // Prefer the full schema, but never block all booking emails if a recent
-  // optional migration (deposit reporting / saved language) isn't installed yet.
-  // Falling back loses only those optional fields; the booking still gets its
-  // original email (English until migration 023 is deployed).
-  const fullFields="id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,deposit_amount_cents,deposit_received_at,deposit_reported_sent_at,preferred_language,services(name_en,name_fr)";
-  const stableFields="id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,deposit_amount_cents,deposit_received_at,services(name_en,name_fr)";
-  let {data,error}=await db.from("appointments").select(fullFields).eq("id",current.id).single();
-  if(error?.code==="42703" || error?.code==="PGRST204"){
-    console.warn("telegram-booking: optional booking columns missing. Apply migrations 022 and 023; sending fallback English notification.");
-    const fallback=await db.from("appointments").select(stableFields).eq("id",current.id).single();
-    data=fallback.data;
-    error=fallback.error;
-  }
-  if(error||!data){
-    console.error("telegram-booking: appointment lookup failed",{code:error?.code,message:error?.message});
-    return new Response("Appointment lookup failed",{status:500});
-  }
-  const serviceInfo=Array.isArray(data.services)?data.services[0]:(data.services as {name_en?:string;name_fr?:string}|null);
-  const serviceName=serviceInfo?.name_en??"Service";
-  const lang:"en"|"fr"=data.preferred_language==="fr"?"fr":"en";
-  const customerService=lang==="fr"?(serviceInfo?.name_fr||serviceName):(serviceInfo?.name_en||serviceInfo?.name_fr||"Service");
+  const {data,error}=await db.from("appointments")
+    .select("id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,deposit_amount_cents,deposit_received_at,deposit_reported_sent_at,services(name_en)")
+    .eq("id",current.id).single();
+  if(error||!data){console.error("telegram-booking: appointment lookup failed",{code:error?.code,message:error?.message});return new Response("Appointment lookup failed",{status:500});}
+  const serviceName=Array.isArray(data.services)?data.services[0]?.name_en:(data.services as {name_en?:string}|null)?.name_en;
   const rescheduled=event==="rescheduled";
   const oldTime=data.reschedule_previous_starts_at?monTime(data.reschedule_previous_starts_at):null;
   // Use the booked appointment's reserved duration, not the service's current
@@ -113,108 +97,70 @@ Deno.serve(async (req) => {
   // on Supabase. Email errors must not prevent the already-working Telegram notification.
   const brevoKey=Deno.env.get("BREVO_API_KEY"),sender=Deno.env.get("BOOKING_EMAIL_FROM");
   if(brevoKey&&sender&&typeof data.customer_email==="string"&&data.customer_email.trim()){
-    const subjectNames:Record<string,[string,string]>={
-      created:["Booking request received","Demande de réservation reçue"],
-      approved:["Appointment approved","Rendez-vous approuvé"],
-      declined:["Appointment declined","Rendez-vous refusé"],
-      cancelled:["Appointment cancelled","Rendez-vous annulé"],
-      rescheduled:["Your appointment time has changed","Modification de votre rendez-vous"],
-      reschedule_confirmed:["New appointment time confirmed","Nouvel horaire confirmé"],
-      reschedule_needs_contact:["We received your scheduling concern","Réponse à votre proposition d’horaire"],
-      deposit_received:["Deposit received","Dépôt reçu"],
-      deposit_unconfirmed:["Deposit status corrected","Statut du dépôt corrigé"]
+    const subjects:Record<string,string>={
+      created:"Hair by Lynna — Booking request received",
+      approved:"Hair by Lynna — Appointment approved",
+      declined:"Hair by Lynna — Appointment declined",
+      cancelled:"Hair by Lynna — Appointment cancelled",
+      rescheduled:"Hair by Lynna — Your appointment time has changed",
+      reschedule_confirmed:"Hair by Lynna — New appointment time confirmed",
+      reschedule_needs_contact:"Hair by Lynna — We received your scheduling concern",
+      deposit_received:"Hair by Lynna — Deposit received",
+      deposit_unconfirmed:"Hair by Lynna — Deposit status corrected"
     };
-    const subject="Hair by Lynna — "+(subjectNames[event]??["Appointment update","Mise à jour du rendez-vous"])[lang==="fr"?1:0];
+    const subject=subjects[event]||"Hair by Lynna — Appointment update";
     const reference=shortRef(data.id,data.starts_at);
     const privateLink="https://hair-by-lynna.pages.dev/?booking="+encodeURIComponent(data.id)+"&ref="+encodeURIComponent(reference)+"#booking-status";
     const reportLink=privateLink.replace("#booking-status","&deposit=sent#booking-status");
-    const when=monTime(data.starts_at,lang);
-    const previousWhen=data.reschedule_previous_starts_at?monTime(data.reschedule_previous_starts_at,lang):null;
-    const reserved=reservedMinutes>0?[
-      Math.floor(reservedMinutes/60)?Math.floor(reservedMinutes/60)+(lang==="fr"?" h":" hr"+(Math.floor(reservedMinutes/60)===1?"":"s")):"",
-      reservedMinutes%60?(reservedMinutes%60)+" min":""
-    ].filter(Boolean).join(" "):null;
-    const copy=lang==="fr"?{
-      hello:"Bonjour",service:"Coiffure",previous:"Ancienne date et heure",newTime:"Nouvelle date et heure proposée",time:"Date et heure",duration:"Durée estimée",status:"Statut",
-      location:"Adresse du rendez-vous",deposit:"Dépôt",received:"Reçu",unpaid:"Non reçu",reported:"Envoi déclaré — vérification en attente",
-      reference:"Référence",check:"Consulter mon rendez-vous",respond:"Répondre à la proposition",
-      private:"Utilisez le courriel de réservation pour consulter le rendez-vous. Gardez votre lien privé.",
-      transfer:"Envoyez le dépôt par Virement Interac",transferNote:"Inscrivez la référence de réservation dans le message. Lynna vérifiera le virement dans son compte. Si vous l'avez déjà envoyé, ne faites pas un deuxième virement.",
-      reportPrompt:"Vous avez déjà envoyé votre dépôt?",reportButton:"J’ai envoyé mon dépôt",
-      reportHow:"Ouvrez ce lien, saisissez votre courriel de réservation et déclarez le transfert. Lynna doit encore vérifier le virement.",
-      reportedNote:"Vous avez indiqué avoir envoyé votre dépôt. Lynna vérifiera le virement Interac avant de confirmer sa réception.",
-      receipt:"Votre dépôt a été reçu et sera déduit de la facture finale. Merci!",
-      correction:"Le statut de votre dépôt a été corrigé. Si vous avez déjà envoyé le virement, contactez Lynna avant d'en effectuer un autre.",
-      reschedule:"Veuillez consulter votre lien de réservation et indiquer si le nouvel horaire vous convient.",
-      rescheduleOk:"Merci d'avoir confirmé votre nouvel horaire.",
-      rescheduleNo:"Lynna a reçu votre réponse et pourra vous contacter pour trouver une autre heure. Votre rendez-vous n'a pas été annulé.",
-      durationNote:"La durée est une estimation et peut varier selon vos cheveux et le style choisi.",
-      statusName:({pending:"En attente",approved:"Approuvé",declined:"Refusé",cancelled:"Annulé",completed:"Terminé"} as Record<string,string>)[data.status]||data.status
-    }:{
-      hello:"Hi",service:"Service",previous:"Previous date & time",newTime:"New proposed date & time",time:"Date & time",duration:"Estimated duration",status:"Status",
-      location:"Appointment address",deposit:"Deposit",received:"Received",unpaid:"Not received",reported:"Reported sent — awaiting verification",
-      reference:"Reference",check:"Check booking status",respond:"Respond to new appointment time",
-      private:"Use the email you booked with to view your status. Keep this link private.",
-      transfer:"Pay deposit by Interac e-Transfer",transferNote:"Include your booking reference in the transfer message. Lynna will check her bank. If you've already sent it, please do not send a second transfer.",
-      reportPrompt:"Already sent your deposit?",reportButton:"I've sent my deposit",
-      reportHow:"Open the link, verify your booking email and report the transfer. Lynna still checks Interac manually.",
-      reportedNote:"You reported sending your deposit. Lynna will verify your Interac payment before confirming receipt.",
-      receipt:"Your deposit has been received and will be deducted from your final bill. Thank you!",
-      correction:"Your deposit confirmation was corrected. If you already transferred it, contact Lynna before sending another payment.",
-      reschedule:"Please open your booking-status link and confirm whether you can attend the new time.",
-      rescheduleOk:"Thank you for confirming your new appointment time.",
-      rescheduleNo:"Lynna received your response and can contact you to arrange another time. Your appointment has not been cancelled.",
-      durationNote:"Duration is an estimate and may vary depending on your hair and style.",
-      statusName:data.status
-    };
-    const depositState=depositPaid?copy.received:depositReported?copy.reported:copy.unpaid;
-    const rows=[
-      [copy.service,customerService],
-      ...(rescheduled&&previousWhen?[[copy.previous,previousWhen]]:[]),
-      [rescheduled?copy.newTime:copy.time,when],
-      ...(reserved?[[copy.duration,reserved]]:[]),
-      [copy.status,copy.statusName],
-      [copy.deposit,depositAmount+" — "+depositState],
-      [copy.reference,reference]
-    ];
-    const details=rows.map(([key,value])=>key+": "+value);
-    const notes=[
-      ...(event==="deposit_received"?[copy.receipt]:[]),
-      ...(event==="deposit_unconfirmed"?[copy.correction]:[]),
-      ...(depositReported&&!depositPaid?[copy.reportedNote]:[]),
-      ...(rescheduled?[copy.reschedule]:[]),
-      ...(event==="reschedule_confirmed"?[copy.rescheduleOk]:[]),
-      ...(event==="reschedule_needs_contact"?[copy.rescheduleNo]:[])
-    ];
     const mailText=[
-      subject,"",copy.hello+" "+data.customer_name+",","",...details,
-      ...(showApprovedLocation?[copy.location+": "+approvedLocation]:[]),
-      "",...notes,
-      ...(paymentInstructions?[copy.transfer+": "+depositAmount+" → "+transferEmail,copy.transferNote,"",
-        copy.reportPrompt+" "+copy.reportButton+": "+reportLink,copy.reportHow]:[]),
-      copy.check+": "+privateLink,"",copy.private,"Hair by Lynna"
+      subject,"", "Hi "+data.customer_name+",",
+      "Service: "+(serviceName??"Service"),
+      ...(rescheduled&&oldTime?["Previous date & time: "+oldTime]:[]),
+      (rescheduled?"New proposed date & time: ":"Date & time: ")+monTime(data.starts_at),
+      ...(durationEstimate?["Estimated duration: "+durationEstimate]:[]),
+      "Status: "+data.status,
+      ...(showApprovedLocation?["Appointment address / Adresse du rendez-vous: "+approvedLocation]:[]),
+      "Deposit: "+depositAmount+" — "+(depositPaid?"Received":depositReported?"Customer reported sent; Lynna verification pending":depositLabel),
+      ...(event==="deposit_received"?["We have confirmed receipt of your deposit. It will be deducted from your final bill."]:[]),
+      ...(event==="deposit_unconfirmed"?["Your deposit confirmation was corrected. If you already transferred the deposit, please contact Lynna before sending another payment."]:[]),
+      ...(depositReported?["You reported sending your Interac deposit. Lynna will verify it manually. Please do not send another payment."]:[]),
+      ...(paymentInstructions?["Already sent your deposit? Report it here / Dépôt envoyé? Déclarez-le ici: "+reportLink]:[]),
+      ...(paymentInstructions?["Interac e-Transfer: "+transferEmail,
+        "Include your booking reference in the e-Transfer message. Lynna will manually confirm the payment after checking her account.",
+        "If you've already sent it, please do not send it again. Wait for Lynna's confirmation."]:[]),
+      ...(rescheduled?["Please open the booking-status link and confirm whether you can attend the new time."]:[]),
+      ...(event==="reschedule_confirmed"?["Thank you for confirming your new appointment time."]:[]),
+      ...(event==="reschedule_needs_contact"?["We received your response. Lynna can contact you to arrange another time. Your appointment has not been cancelled."]:[]),
+      "Reference: "+reference,
+      "Check your appointment status ("+reference+"): "+privateLink,
+      "", "Keep your booking status link private.",
+      "Hair by Lynna"
     ].join("\n");
-    const htmlRows=rows.map(([key,value])=>escapeHtml(key)+": <strong>"+escapeHtml(value)+"</strong><br/>").join("");
-    const htmlContent=[
-      '<!doctype html><html lang="'+lang+'"><body style="margin:0;padding:24px 12px;background:#120c13;font-family:Arial,Helvetica,sans-serif;color:#fbeaf3;">',
-      '<div style="max-width:540px;margin:auto;background:#21121e;border:1px solid #b57495;border-radius:12px;padding:28px 22px;">',
-      '<img src="https://hair-by-lynna.pages.dev/images/hair-by-lynna-logo.png" alt="Hair by Lynna" width="260" style="display:block;width:260px;max-width:100%;height:auto;margin:0 auto 22px;"/>',
-      '<h2 style="font-size:19px;font-weight:600;margin:0 0 18px;">'+escapeHtml(subject)+'</h2>',
-      '<p>'+escapeHtml(copy.hello)+' '+escapeHtml(data.customer_name)+',</p>',
-      '<p style="line-height:1.8;">'+htmlRows+'</p>',
-      ...(showApprovedLocation?['<div style="padding:15px;margin:14px 0;border:1px solid #b57495;background:#311c2b;border-radius:8px;"><strong>'+escapeHtml(copy.location)+'</strong><p>'+escapeHtml(approvedLocation)+'</p></div>']:[]),
-      ...notes.map(note=>'<p style="color:#ffd6e9;line-height:1.65;">'+escapeHtml(note)+'</p>'),
-      ...(paymentInstructions?[
-        '<div style="padding:15px;margin:14px 0;border:1px solid #b57495;background:#311c2b;border-radius:8px;"><strong>'+escapeHtml(copy.transfer)+'</strong><p>'+escapeHtml(depositAmount)+' → <strong>'+escapeHtml(transferEmail)+'</strong></p><p>'+escapeHtml(copy.transferNote)+'</p></div>',
-        '<p>'+escapeHtml(copy.reportPrompt)+'</p>',
-        '<a href="'+escapeHtml(reportLink)+'" style="display:inline-block;background:#f6bdd9;color:#271323;padding:13px 17px;border-radius:7px;text-decoration:none;font-weight:bold;margin:5px 0 12px;">'+escapeHtml(copy.reportButton)+'</a>',
-        '<p style="font-size:12px;color:#d3aec0;">'+escapeHtml(copy.reportHow)+'</p>'
-      ]:[]),
-      '<a href="'+escapeHtml(privateLink)+'" style="display:inline-block;background:#e99ec2;color:#21121e;padding:15px 22px;border-radius:7px;text-decoration:none;font-weight:bold;margin:12px 0;">'+escapeHtml(rescheduled?copy.respond:copy.check)+'</a>',
-      ...(reserved?['<p style="font-size:12px;color:#d3aec0;">'+escapeHtml(copy.durationNote)+'</p>']:[]),
-      '<p style="font-size:12px;color:#d3aec0;line-height:1.5;">'+escapeHtml(copy.private)+'</p>',
-      '<p style="margin-top:24px;">Hair by Lynna</p></div></body></html>'
-    ].join("");
+    const htmlContent=`<!doctype html><html><body style="margin:0;padding:24px 12px;background:#120c13;font-family:Arial,Helvetica,sans-serif;color:#fbeaf3;">
+      <div style="max-width:540px;margin:auto;background:#21121e;border:1px solid #b57495;border-radius:12px;padding:28px 22px;">
+       <img src="https://hair-by-lynna.pages.dev/images/hair-by-lynna-logo.png" alt="Hair by Lynna" width="260" style="display:block;width:260px;max-width:100%;height:auto;margin:0 auto 22px;border:0;outline:none;text-decoration:none;" />
+       <h2 style="font-size:19px;font-weight:600;margin:0 0 18px;">${escapeHtml(subject)}</h2>
+       <p>Hi ${escapeHtml(data.customer_name)},</p>
+       <p style="line-height:1.8;">Service: <strong>${escapeHtml(serviceName??"Service")}</strong><br/>
+       ${rescheduled&&oldTime?'Previous date &amp; time: <strong>'+escapeHtml(oldTime)+'</strong><br/>':''}
+       ${rescheduled?'New proposed date &amp; time:':'Date &amp; time:'} <strong>${escapeHtml(monTime(data.starts_at))}</strong><br/>
+       ${durationEstimate?'Estimated duration: <strong>'+escapeHtml(durationEstimate)+'</strong><br/>':''}
+       Status: <strong>${escapeHtml(data.status)}</strong><br/>
+       Deposit: <strong>${escapeHtml(depositAmount+" — "+depositLabel)}</strong><br/>
+       Reference: <strong style="color:#f2b3d1;">${escapeHtml(reference)}</strong></p>
+       ${showApprovedLocation?'<div style="padding:15px;margin:14px 0;border-radius:8px;border:1px solid #b57495;background:#311c2b;"><strong style="color:#ffcbe1;">Appointment address / Adresse du rendez-vous</strong><p style="margin:8px 0 0;line-height:1.7;">'+escapeHtml(approvedLocation)+'</p><p style="font-size:12px;color:#d3aec0;margin:8px 0 0;">Please keep this location private. / Merci de garder cette adresse privée.</p></div>':''}
+       ${rescheduled?'<p style="color:#ffd6e9;font-weight:bold;">Please confirm the new appointment time or let Lynna know if you cannot attend, using the link below.</p>':''}
+       ${event==="deposit_received"?'<p style="color:#ffcbe1;font-weight:bold;">Your deposit has been received and will be deducted from the final bill. Thank you!</p>':''}
+       ${event==="deposit_unconfirmed"?'<p style="color:#ffcbe1;">Your deposit confirmation has been corrected. If you already sent the transfer, contact Lynna before sending another payment.</p>':''}
+       ${depositReported?'<p style="color:#ffd6e9;font-weight:bold;">You reported sending the deposit / Dépôt déclaré envoyé. Lynna will verify the Interac payment before confirming receipt.</p>':''}
+       ${paymentInstructions?'<div style="padding:15px;margin:14px 0;border-radius:8px;border:1px solid #b57495;background:#311c2b;"><strong style="color:#ffcbe1;">Pay deposit by Interac e-Transfer</strong><p>Send '+escapeHtml(depositAmount)+' to <strong>'+escapeHtml(transferEmail)+'</strong>. Add your booking reference to the transfer message.</p><p style="font-size:12px;">Lynna will verify the transfer manually. If you already sent it, do not send another; wait for confirmation.</p></div>':''}
+       ${event==="reschedule_needs_contact"?'<p>Lynna has been informed that the proposed time does not work for you. She can follow up to arrange another time. Your booking remains active.</p>':''}
+       ${paymentInstructions?'<p style="font-size:13px;line-height:1.6;margin:12px 0 4px;">Already sent your deposit? / Vous avez envoyé votre dépôt?</p><a href="'+escapeHtml(reportLink)+'" style="display:inline-block;background:#f6bdd9;color:#271323;padding:13px 17px;border-radius:7px;text-decoration:none;font-weight:bold;margin:5px 0 12px;">I’ve sent my deposit / J’ai envoyé mon dépôt</a><p style="font-size:12px;color:#d3aec0;">Open the link, verify your booking email, then report the transfer. Lynna still checks Interac manually.</p>':''}
+       <a href="${escapeHtml(privateLink)}" style="display:inline-block;background:#e99ec2;color:#21121e;padding:15px 22px;border-radius:7px;text-decoration:none;font-weight:bold;margin:12px 0;">${rescheduled?'Respond to new appointment time':'Check booking status'}</a>
+       ${durationEstimate?'<p style="font-size:12px;color:#d3aec0;line-height:1.5;">The duration is an estimate and may vary depending on your hair and styling needs.</p>':''}
+       <p style="font-size:12px;color:#d3aec0;line-height:1.5;">Use the same email you booked with to view your status. Keep this link private.</p>
+       <p style="margin-top:24px;">Hair by Lynna</p>
+      </div></body></html>`;
     try {
       const mail=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{
         "api-key":brevoKey,"Content-Type":"application/json","accept":"application/json"
