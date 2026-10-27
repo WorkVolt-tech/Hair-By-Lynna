@@ -114,3 +114,8 @@
     grid-template-columns:minmax(0,1fr);
   }
 }
+/* Download & archive: confirmation step */
+.lynna-statistics .stats-archive-confirm{margin-top:14px;padding:14px 16px;border:1px solid #c98aa9;border-radius:10px;background:rgba(201,138,169,.08)}
+.lynna-statistics .stats-archive-confirm p{margin:0 0 8px;line-height:1.55}
+.admin-page .lynna-statistics .stats-export-buttons button.stats-archive-delete{background:#7d1f3d;border-color:#c25478;color:#fff}
+.admin-page .lynna-statistics .stats-export-buttons button.stats-archive-delete:hover:not(:disabled){background:#982750}

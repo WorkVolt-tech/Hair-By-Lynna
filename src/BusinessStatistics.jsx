@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, CalendarCheck2, ChevronLeft, ChevronRight, CircleDollarSign, CreditCard, Download, RefreshCw, TrendingUp, Wallet } from 'lucide-react';
+import { BarChart3, CalendarCheck2, ChevronLeft, ChevronRight, CircleDollarSign, CreditCard, Download, RefreshCw, Trash2, TrendingUp, Wallet } from 'lucide-react';
 import { supabase } from './lib/supabase.js';
-import { appointmentsCsv, paymentsCsv, statisticsCsv, saveCsv } from './lib/businessCsv.js';
+import { downloadArchiveExcel } from './lib/businessXlsx.js';
 import './businessStatistics.css';
 
 const currentMontrealMonth=()=>{
@@ -25,6 +25,8 @@ export default function BusinessStatistics({language}){
   const [error,setError]=useState('');
   const [exporting,setExporting]=useState('');
   const [exportError,setExportError]=useState(''),[exportSuccess,setExportSuccess]=useState('');
+  // Archive flow: download one Excel file, then (after Lynna confirms) delete those rows.
+  const [archive,setArchive]=useState(null);
   const [revision,setRevision]=useState(0);
   const lastRefreshRef=useRef(0);
   useEffect(()=>{try{sessionStorage.setItem('lynna-admin-stats-month',month)}catch{}},[month]);
@@ -89,52 +91,64 @@ export default function BusinessStatistics({language}){
       supabase.removeChannel(channel);
     };
   },[]);
-  async function exportReport(kind){
+  async function downloadArchive(){
     if(exporting||!supabase)return;
-    const selectedMonth=month;
-    setExporting(kind);setExportError('');setExportSuccess('');
+    setExporting('archive');setExportError('');setExportSuccess('');setArchive(null);
     try{
-      if(kind==='statistics'){
-        // Ask for a fresh owner-verified snapshot, never an older month's
-        // on-screen cache while the user is switching months.
-        const {data,error:statsError}=await supabase.rpc('owner_monthly_business_statistics',{
-          p_month:selectedMonth+'-01'
-        });
-        if(statsError||!data||data.month!==selectedMonth)throw new Error('STATS_FAILED');
-        saveCsv('hair-by-lynna-statistics-'+selectedMonth+'.csv',statisticsCsv(data,fr));
-        setExportSuccess(fr?'Statistiques CSV téléchargées.':'Statistics CSV downloaded.');
-      }else{
-        // The active and archived admin views have pagination / row limits.
-        // Fetch the entire selected month through an OWNER-ONLY SQL function.
-        const records=[];
-        const pageSize=500,maxRows=25000;
-        for(let start=0;start<maxRows;start+=pageSize){
-          const {data,error:rowsError}=await supabase.rpc('owner_export_monthly_appointments',{
-            p_month:selectedMonth+'-01'
-          }).range(start,start+pageSize-1);
-          if(rowsError)throw rowsError;
-          if(!Array.isArray(data))throw new Error('Invalid export result');
-          records.push(...data);
-          if(data.length<pageSize)break;
-          // A full final page can be the exact end of the result; the next
-          // request returns an empty page. Refuse silent truncation.
-          if(records.length>=maxRows)throw new Error('Too many records to export');
-        }
-        const rows=kind==='appointments'?appointmentsCsv(records,fr):paymentsCsv(records,fr);
-        const file=kind==='appointments'?'appointments':'payments';
-        saveCsv('hair-by-lynna-'+file+'-'+selectedMonth+'.csv',rows);
-        setExportSuccess((fr?records.length+' rendez-vous exportés.':records.length+' appointments exported.')+
-          (records.length===0?(fr?' Aucun rendez-vous pour ce mois.':' No appointments this month.'):''));
+      // One cutoff for every request, so the file, the totals and the delete
+      // list all describe exactly the same appointments.
+      const cutoff=new Date().toISOString();
+      const records=[];
+      const pageSize=500,maxRows=25000;
+      for(let start=0;start<maxRows;start+=pageSize){
+        const {data,error:rowsError}=await supabase.rpc('owner_export_past_appointments',{p_cutoff:cutoff})
+          .range(start,start+pageSize-1);
+        if(rowsError)throw rowsError;
+        if(!Array.isArray(data))throw new Error('Invalid export result');
+        records.push(...data);
+        if(data.length<pageSize)break;
+        if(records.length>=maxRows)throw new Error('Too many records to export');
       }
+      if(records.length===0){
+        setExportSuccess(fr?'Aucun rendez-vous passé à archiver.':'There are no past appointments to archive.');
+        return;
+      }
+      const {data:totals,error:statsError}=await supabase.rpc('owner_past_business_statistics',{p_cutoff:cutoff});
+      if(statsError||!totals)throw new Error('STATS_FAILED');
+      const {filename}=downloadArchiveExcel(records,totals,fr);
+      setArchive({
+        rows:records.map(r=>({id:r.appointment_id,v:r.row_version})),
+        count:records.length,period:totals.month,filename
+      });
     }catch(e){
-      // No raw customer data or file content is logged on export failures.
-      setExportError(kind==='statistics'
-        ?(fr?'Export impossible. Vérifiez la migration SQL 019 et réessayez.':'Export failed. Check SQL migration 019 and try again.')
-        :(fr?'Export impossible. Vérifiez la migration SQL 020 et réessayez.':'Export failed. Check SQL migration 020 and try again.'));
+      // No customer data or file content is logged on failures.
+      setExportError(fr?'Téléchargement impossible. Rien n’a été supprimé. Réessayez.':'Download failed. Nothing was deleted. Please try again.');
     }finally{
       setExporting('');
     }
   }
+  async function deleteArchived(){
+    if(!archive||exporting||!supabase)return;
+    setExporting('delete');setExportError('');
+    try{
+      const {data,error:deleteError}=await supabase.rpc('owner_delete_archived_appointments',{p_rows:archive.rows});
+      if(deleteError||!data)throw deleteError||new Error('DELETE_FAILED');
+      const deleted=safeNum(data.deleted),kept=safeNum(data.kept);
+      setArchive(null);
+      setExportSuccess((fr
+        ?deleted+' rendez-vous passé'+(deleted>1?'s':'')+' supprimé'+(deleted>1?'s':'')+' de la base de données.'
+        :deleted+' past appointment'+(deleted===1?'':'s')+' deleted from the database.')+
+        (kept>0?(fr
+          ?' '+kept+' rendez-vous modifié'+(kept>1?'s':'')+' après le téléchargement ont été conservés : téléchargez de nouveau pour les archiver.'
+          :' '+kept+' appointment'+(kept===1?' was':'s were')+' changed after the download and kept. Download again to archive '+(kept===1?'it':'them')+'.'):''));
+      setRevision(n=>n+1);
+    }catch(e){
+      setExportError(fr?'Suppression impossible. Vos données sont intactes. Réessayez.':'Delete failed. Your data is unchanged. Please try again.');
+    }finally{
+      setExporting('');
+    }
+  }
+
   const trend=useMemo(()=>Array.isArray(stats?.trend)?stats.trend:[],[stats]);
   const popular=useMemo(()=>Array.isArray(stats?.top_styles)?stats.top_styles:[],[stats]);
   const mostCompleted=Math.max(1,...trend.map(m=>safeNum(m.completed)));
@@ -183,24 +197,41 @@ export default function BusinessStatistics({language}){
         disabled={next>currentMonth} onClick={()=>setMonth(next)}><ChevronRight size={19}/></button>
     </div>
 
-    <section className="stats-export" aria-label={fr?'Exporter les rapports CSV':'Export CSV reports'}>
+    <section className="stats-export" aria-label={fr?'Archiver les rendez-vous passés':'Archive past appointments'}>
       <div className="stats-export-heading">
-        <h3><Download size={18}/>{fr?'Exporter les rapports':'Export reports'}</h3>
-        <p>{fr?'Téléchargez les fichiers CSV du mois sélectionné, compatibles avec Excel et Google Sheets.':'Download CSV files for the selected month, compatible with Excel and Google Sheets.'}</p>
+        <h3><Download size={18}/>{fr?'Télécharger et archiver':'Download & archive'}</h3>
+        <p>{fr
+          ?'Un seul fichier Excel avec 3 onglets (Rendez-vous, Paiements, Statistiques) contenant tous les rendez-vous déjà terminés, peu importe le mois. Après le téléchargement, vous pourrez les supprimer de la base de données. Les rendez-vous à venir ne sont jamais touchés.'
+          :'One Excel file with 3 tabs (Appointments, Payments, Statistics) containing every appointment that has already ended, from any month. After the download you can delete them from the database. Upcoming appointments are never touched.'}</p>
       </div>
-      <div className="stats-export-buttons">
-        {[
-          ['appointments',fr?'Historique des rendez-vous':'Appointment history'],
-          ['payments',fr?'Rapport de paiements':'Payment report'],
-          ['statistics',fr?'Statistiques mensuelles':'Monthly statistics']
-        ].map(([kind,label])=><button key={kind} type="button" disabled={Boolean(exporting)}
-          onClick={()=>exportReport(kind)} aria-label={(fr?'Télécharger le CSV : ':'Download CSV: ')+label}>
-          <Download size={15}/>{exporting===kind?(fr?'Préparation…':'Preparing…'):label}
-        </button>)}
-      </div>
+      {!archive&&<div className="stats-export-buttons">
+        <button type="button" disabled={Boolean(exporting)} onClick={downloadArchive}>
+          <Download size={15}/>{exporting==='archive'?(fr?'Préparation…':'Preparing…'):(fr?'Télécharger les rendez-vous passés':'Download past appointments')}
+        </button>
+      </div>}
+      {archive&&<div className="stats-archive-confirm" role="group" aria-label={fr?'Confirmer la suppression':'Confirm deletion'}>
+        <p><strong>{fr?'Le fichier a-t-il bien été enregistré?':'Did the file save?'}</strong></p>
+        <p>{fr
+          ?'Ouvrez « '+archive.filename+' » et vérifiez qu’il contient vos '+archive.count+' rendez-vous ('+archive.period+'). Gardez-le en lieu sûr : ce sera votre seule copie.'
+          :'Open “'+archive.filename+'” and check it contains your '+archive.count+' appointment'+(archive.count===1?'':'s')+' ('+archive.period+'). Keep it somewhere safe: it will be your only copy.'}</p>
+        <div className="stats-export-buttons">
+          <button type="button" className="stats-archive-delete" disabled={Boolean(exporting)} onClick={deleteArchived}>
+            <Trash2 size={15}/>{exporting==='delete'?(fr?'Suppression…':'Deleting…'):(fr
+              ?'Oui, fichier enregistré. Supprimer '+archive.count+' rendez-vous'
+              :'Yes, file saved. Delete '+archive.count+' appointment'+(archive.count===1?'':'s'))}
+          </button>
+          <button type="button" disabled={Boolean(exporting)} onClick={downloadArchive}>
+            <Download size={15}/>{fr?'Télécharger de nouveau':'Download again'}
+          </button>
+          <button type="button" disabled={Boolean(exporting)} onClick={()=>setArchive(null)}>
+            {fr?'Pas maintenant':'Not now'}
+          </button>
+        </div>
+        <p className="stats-export-privacy">{fr?'La suppression est définitive.':'Deleting cannot be undone.'}</p>
+      </div>}
       <p className="stats-export-privacy">{fr
-        ?'Privé : les fichiers de rendez-vous et paiements comprennent des noms et des courriels clients. Conservez-les en sécurité. Les remboursements ne sont pas comptabilisés.'
-        :'Private: appointment and payment files include customer names and emails. Store them securely. Refunds are not tracked.'}</p>
+        ?'Privé : le fichier comprend des noms et des courriels clients. Conservez-le en sécurité (au moins 6 ans pour les dossiers d’entreprise). Les remboursements ne sont pas comptabilisés.'
+        :'Private: the file includes customer names and emails. Store it securely (business records should be kept at least 6 years). Refunds are not tracked.'}</p>
       <div className="stats-export-feedback" aria-live="polite">
         {exportError&&<span role="alert" className="stats-export-error">{exportError}</span>}
         {exportSuccess&&<span className="stats-export-success">{exportSuccess}</span>}

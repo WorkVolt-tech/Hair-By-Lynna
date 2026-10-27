@@ -115,3 +115,22 @@ export function downloadMonthlyExcel(records,stats,month,fr){
  }
  return {count:records.length};
 }
+
+// One workbook for every past appointment (any months), used by
+// "Download & archive". Same three tabs as the monthly workbook.
+export function downloadArchiveExcel(records,stats,fr){
+ const bytes=makeMonthlyExcel(records,stats,fr);
+ const span=stats.first_month&&stats.last_month&&stats.first_month!==stats.last_month
+   ?stats.first_month+'_to_'+stats.last_month:(stats.first_month||'archive');
+ const filename='hair-by-lynna-archive-'+span+'.xlsx';
+ const blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement('a');
+ a.href=url;a.download=filename;a.style.display='none';
+ document.body.appendChild(a);
+ try{a.click()}finally{
+  a.remove();
+  window.setTimeout(()=>URL.revokeObjectURL(url),60000);
+ }
+ return {count:records.length,filename};
+}
