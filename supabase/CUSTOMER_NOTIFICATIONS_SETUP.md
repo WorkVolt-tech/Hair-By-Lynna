@@ -22,11 +22,11 @@ The status checker is now a centered black/rose-pink card on desktop and mobile;
 
 The `telegram-booking` Edge Function in GitHub supports optional Brevo transactional emails for new booking requests, approval, decline, cancellation, and rescheduling. It sends independently of Telegram. If secrets are absent, email is disabled.
 
-1. In Brevo, go to **Settings → Senders, Domains & Dedicated IPs → Senders** (wording may vary), add `xhair.dreams@gmail.com` as a sender and verify it. Brevo may substitute its own domain for free-address senders; this is expected. Customers can still reply to `xhair.dreams@gmail.com`.
+1. In Brevo, go to **Settings → Senders, Domains & Dedicated IPs → Senders** (wording may vary), add `hairbylynna@gmail.com` as a sender and verify it. Brevo may substitute its own domain for free-address senders; this is expected. Customers can still reply to `hairbylynna@gmail.com`.
 2. Go to **SMTP & API → API Keys** (sometimes `Settings → SMTP & API`) and create a v3 API key. **Never post the key in chats or GitHub**.
 3. Supabase Dashboard → Edge Functions → Secrets, add:
    - `BREVO_API_KEY`: the Brevo API v3 key
-   - `BOOKING_EMAIL_FROM`: the **verified sender address** registered in Brevo (initially `xhair.dreams@gmail.com` if accepted).
+   - `BOOKING_EMAIL_FROM`: the **verified sender address** registered in Brevo (initially `hairbylynna@gmail.com` if accepted).
 4. In Supabase Dashboard → Edge Functions → `telegram-booking`, update/redeploy from the latest code in `supabase/functions/telegram-booking/index.ts`. Keep JWT verification OFF; the webhook uses the existing `X-Webhook-Secret` authentication. No new webhook required.
 5. Submit a test appointment and test approval, decline, cancellation, and rescheduling; check Brevo transactional logs and recipient inbox/spam.
 6. If the API returns an error, check the Supabase function logs. Never paste API keys into a log or chat.
