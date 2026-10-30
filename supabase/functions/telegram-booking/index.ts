@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
   const depositReported=Boolean(data.deposit_reported_sent_at);
   const depositAmount=new Intl.NumberFormat("en-CA",{style:"currency",currency:"CAD"}).format((data.deposit_amount_cents??2000)/100);
   const depositLabel=depositPaid?"Received":"Not received";
-  const transferEmail="xhair.dreams@gmail.com";
+  const transferEmail="hairbylynna@gmail.com";
   // Only share the private service address with customers whose booking is
   // approved. Never include it in an initial pending request or rejection.
   const approvedLocation="12151 Place Philippe-Lebon, Montréal, QC H1E 1L6";
@@ -270,7 +270,7 @@ Deno.serve(async (req) => {
       });
       const sent=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{
         "api-key":brevoKey,"Content-Type":"application/json","accept":"application/json"
-      },body:JSON.stringify({sender:{name:"Hair by Lynna",email:sender},replyTo:{email:"xhair.dreams@gmail.com",name:"Lynna"},to:[{email:data.customer_email,name:data.customer_name}],subject:mail.subject,textContent:mail.textContent,htmlContent:mail.htmlContent})});
+      },body:JSON.stringify({sender:{name:"Hair by Lynna",email:sender},replyTo:{email:"hairbylynna@gmail.com",name:"Lynna"},to:[{email:data.customer_email,name:data.customer_name}],subject:mail.subject,textContent:mail.textContent,htmlContent:mail.htmlContent})});
       if(!sent.ok)console.error("telegram-booking: customer email failed",sent.status,(await sent.text()).slice(0,400));
       else console.info("telegram-booking: customer email accepted ("+lang+")");
     }catch(e){console.error("telegram-booking: customer email error",String(e));}
