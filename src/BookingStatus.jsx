@@ -138,7 +138,7 @@ export default function BookingStatus({ language, initialId = '', initialReferen
       ?<p>{fr?'Lynna a confirmé la réception de votre dépôt. Il sera déduit du montant final.':'Lynna has confirmed receipt of your deposit. It will be deducted from your final bill.'}</p>
       :(['pending','approved'].includes(record.status)&&<>
         <p>{fr?'Envoyez votre dépôt par Virement Interac à :':'Send your deposit by Interac e-Transfer to:'}</p>
-        <a className="booking-deposit-email" href="mailto:xhair.dreams@gmail.com">xhair.dreams@gmail.com</a>
+        <a className="booking-deposit-email" href="mailto:hairbylynna@gmail.com">hairbylynna@gmail.com</a>
         <p>{fr?'Inscrivez votre référence de réservation dans le message du virement. Lynna confirmera la réception après vérification. Si vous avez déjà payé, ne renvoyez pas un deuxième virement.':'Include your booking reference in the transfer message. Lynna will confirm after verifying the payment. If you have already paid, do not send it a second time.'}</p>
         {record.deposit_reported_sent_at
          ?<p className="booking-deposit-reported" role="status">{fr
