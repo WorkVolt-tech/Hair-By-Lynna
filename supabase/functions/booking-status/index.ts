@@ -89,7 +89,7 @@ Deno.serve(async req=>{
       try{
         const mail=await fetch("https://api.brevo.com/v3/smtp/email",{
           method:"POST",headers:{"Content-Type":"application/json","api-key":brevoKey,"accept":"application/json"},
-          body:JSON.stringify({sender:{email:sender,name:"Hair by Lynna"},replyTo:{email:"xhair.dreams@gmail.com",name:"Lynna"},
+          body:JSON.stringify({sender:{email:sender,name:"Hair by Lynna"},replyTo:{email:"hairbylynna@gmail.com",name:"Lynna"},
             to:[{email}],subject,textContent:text,htmlContent:html})
         });
         if(!mail.ok)console.error("booking-status: Brevo failed",mail.status);
